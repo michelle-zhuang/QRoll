@@ -3,10 +3,11 @@ import { createSupabaseClient } from '../../../lib/supabase';
 
 export const POST: APIRoute = async ({ cookies, redirect, url }) => {
   const next = url.searchParams.get('next') || '/dashboard';
+  const baseUrl = import.meta.env.PUBLIC_APP_URL || url.origin;
   const supabase = createSupabaseClient(cookies);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${url.origin}/api/auth/callback?next=${encodeURIComponent(next)}` },
+    options: { redirectTo: `${baseUrl}/api/auth/callback?next=${encodeURIComponent(next)}` },
   });
 
   if (error) return new Response(error.message, { status: 500 });
