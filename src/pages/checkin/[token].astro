@@ -12,34 +12,72 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect(`/login?next=/checkin/${token}`);
 
-const { data: event } = await supabase.from('events').select('*').eq('qr_token', token).single();
-if (!event) return Astro.redirect('/404');
+let { data: event } = await supabase.from('events').select('*').eq('qr_token', token).maybeSingle();
+let nextOccurrence: { title: string; checkin_opens_at: string } | null = null;
 
-// Find the roster_member linked to this auth user (via claimed_user_id)
+if (!event) {
+  const { data: series } = await supabase
+    .from('event_series')
+    .select('id, title')
+    .eq('qr_token', token)
+    .maybeSingle();
+  if (series) {
+    const nowIso = new Date().toISOString();
+    const { data: active } = await supabase
+      .from('events')
+      .select('*')
+      .eq('series_id', series.id)
+      .is('cancelled_at', null)
+      .lte('checkin_opens_at', nowIso)
+      .gte('checkin_closes_at', nowIso)
+      .order('checkin_closes_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (active) {
+      event = active;
+    } else {
+      const { data: next } = await supabase
+        .from('events')
+        .select('title, checkin_opens_at')
+        .eq('series_id', series.id)
+        .is('cancelled_at', null)
+        .gt('checkin_opens_at', nowIso)
+        .order('checkin_opens_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      nextOccurrence = next ?? { title: series.title, checkin_opens_at: '' };
+    }
+  }
+}
+
+if (!event && !nextOccurrence) return Astro.redirect('/404');
+
 const { data: rosterMember } = await supabase
   .from('roster_members')
   .select('id')
   .eq('claimed_user_id', session.user.id)
   .maybeSingle();
 
-const { data: existing } = rosterMember
-  ? await supabase
-      .from('attendance')
-      .select('*')
-      .eq('event_id', event.id)
-      .eq('roster_member_id', rosterMember.id)
-      .maybeSingle()
-  : await supabase
-      .from('attendance')
-      .select('*')
-      .eq('event_id', event.id)
-      .eq('user_id', session.user.id)
-      .maybeSingle();
+const { data: existing } = event
+  ? rosterMember
+    ? await supabase
+        .from('attendance')
+        .select('*')
+        .eq('event_id', event.id)
+        .eq('roster_member_id', rosterMember.id)
+        .maybeSingle()
+    : await supabase
+        .from('attendance')
+        .select('*')
+        .eq('event_id', event.id)
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+  : { data: null } as { data: null };
 
 let message = '';
 let success = !!existing;
 
-if (Astro.request.method === 'POST' && !existing) {
+if (event && Astro.request.method === 'POST' && !existing) {
   const { status } = determineCheckinStatus({
     now: new Date(),
     opens_at: new Date(event.checkin_opens_at),
@@ -75,25 +113,45 @@ if (Astro.request.method === 'POST' && !existing) {
   }
 }
 
-const currentStatus = determineCheckinStatus({
-  now: new Date(),
-  opens_at: new Date(event.checkin_opens_at),
-  late_after: new Date(event.late_after_at),
-  closes_at: new Date(event.checkin_closes_at)
-});
+const currentStatus = event
+  ? determineCheckinStatus({
+      now: new Date(),
+      opens_at: new Date(event.checkin_opens_at),
+      late_after: new Date(event.late_after_at),
+      closes_at: new Date(event.checkin_closes_at)
+    })
+  : null;
+
+const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
 ---
-<Layout title={`Check-in: ${event.title}`}>
+<Layout title={`Check-in: ${pageTitle}`}>
   <main class="flex items-center justify-center min-h-[calc(100vh-3.5rem)] p-4">
     <AstroCard className="max-w-md w-full p-8 text-center">
       <div class="mb-6">
         <div class="inline-flex p-3 rounded-full bg-primary/10 text-primary mb-4">
           <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-12a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
         </div>
-        <h1 class="text-2xl font-semibold tracking-tight">{event.title}</h1>
+        <h1 class="text-2xl font-semibold tracking-tight">{pageTitle}</h1>
         <p class="text-muted-foreground mt-1 text-sm">Event attendance verification</p>
       </div>
 
-      {success ? (
+      {!event && nextOccurrence ? (
+        <div class="space-y-5">
+          <div class="bg-muted/50 border p-5 rounded-2xl">
+            <p class="text-base font-semibold">No live check-in right now</p>
+            {nextOccurrence.checkin_opens_at ? (
+              <p class="text-sm text-muted-foreground mt-1">
+                Next session opens {new Date(nextOccurrence.checkin_opens_at).toLocaleString()}
+              </p>
+            ) : (
+              <p class="text-sm text-muted-foreground mt-1">No upcoming sessions are scheduled.</p>
+            )}
+          </div>
+          <a href="/dashboard" class="block">
+            <AstroButton variant="outline" className="w-full">Return to dashboard</AstroButton>
+          </a>
+        </div>
+      ) : success ? (
         <div class="space-y-5">
           <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl text-emerald-700">
             <div class="flex justify-center mb-2">
@@ -111,7 +169,7 @@ const currentStatus = determineCheckinStatus({
         </div>
       ) : (
         <div class="space-y-5">
-          <p class="text-sm text-muted-foreground leading-relaxed">Confirm your presence for <span class="font-medium text-foreground">{event.title}</span>.</p>
+          <p class="text-sm text-muted-foreground leading-relaxed">Confirm your presence for <span class="font-medium text-foreground">{event!.title}</span>.</p>
 
           {message && (
             <div class="bg-destructive/10 border border-destructive/30 p-3 rounded-2xl text-destructive text-sm">
@@ -120,17 +178,17 @@ const currentStatus = determineCheckinStatus({
           )}
 
           <div class="py-4 border-y flex items-center justify-center">
-            {currentStatus.status === 'not_open' && (
+            {currentStatus?.status === 'not_open' && (
               <AstroBadge variant="warning">
-                Opens at {new Date(event.checkin_opens_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Opens at {new Date(event!.checkin_opens_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </AstroBadge>
             )}
-            {currentStatus.status === 'closed' && (
+            {currentStatus?.status === 'closed' && (
               <AstroBadge variant="destructive">
                 Check-in is closed
               </AstroBadge>
             )}
-            {(currentStatus.status === 'present' || currentStatus.status === 'late') && (
+            {(currentStatus?.status === 'present' || currentStatus?.status === 'late') && (
               <div class="flex items-center gap-2">
                 <span class="relative flex h-2.5 w-2.5">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -141,13 +199,13 @@ const currentStatus = determineCheckinStatus({
             )}
           </div>
 
-          {(currentStatus.status === 'present' || currentStatus.status === 'late') && (
+          {(currentStatus?.status === 'present' || currentStatus?.status === 'late') && (
             <form method="post">
               <AstroButton type="submit" size="lg" className="w-full h-14 text-base font-semibold">
                 <span class="flex flex-col items-center">
                   <span>Submit attendance</span>
-                  {currentStatus.status === 'late' && <span class="text-[10px] uppercase tracking-wider opacity-70 mt-0.5">Status: late</span>}
-                  {currentStatus.status === 'present' && <span class="text-[10px] uppercase tracking-wider opacity-70 mt-0.5">Status: on time</span>}
+                  {currentStatus?.status === 'late' && <span class="text-[10px] uppercase tracking-wider opacity-70 mt-0.5">Status: late</span>}
+                  {currentStatus?.status === 'present' && <span class="text-[10px] uppercase tracking-wider opacity-70 mt-0.5">Status: on time</span>}
                 </span>
               </AstroButton>
             </form>

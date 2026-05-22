@@ -7,6 +7,8 @@ import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { Textarea } from '../../../components/ui/textarea';
 import { DateTimePicker } from '../../../components/DateTimePicker';
+import { RecurrenceFields } from '../../../components/RecurrenceFields';
+import { expandOccurrences, type RecurrenceFreq } from '../../../lib/recurrence';
 
 const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
@@ -19,21 +21,107 @@ let errorMsg = '';
 
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
-  const title = formData.get('title');
-  const description = formData.get('description');
-  const starts_at = formData.get('starts_at');
-  const checkin_opens_at = formData.get('checkin_opens_at');
-  const late_after_at = formData.get('late_after_at');
-  const checkin_closes_at = formData.get('checkin_closes_at');
-  const qr_token = crypto.randomUUID();
+  const title = formData.get('title') as string;
+  const description = formData.get('description') as string | null;
+  const startsAtStr = formData.get('starts_at') as string;
+  const opensAtStr = formData.get('checkin_opens_at') as string;
+  const lateAfterStr = formData.get('late_after_at') as string;
+  const closesAtStr = formData.get('checkin_closes_at') as string;
 
-  const { error } = await supabase.from('events').insert({
-    title, description, starts_at, checkin_opens_at, late_after_at, checkin_closes_at, qr_token,
-    created_by: session.user.id
-  });
+  const recurrenceFreq = (formData.get('recurrence_freq') as string | null) || '';
+  const recurrenceTimezone = (formData.get('recurrence_timezone') as string | null) || 'UTC';
+  const recurrenceByweekdayRaw = (formData.get('recurrence_byweekday') as string | null) || '';
+  const recurrenceCountRaw = (formData.get('recurrence_count') as string | null) || '';
+  const recurrenceUntilRaw = (formData.get('recurrence_until') as string | null) || '';
 
-  if (!error) return Astro.redirect('/admin?toast=' + encodeURIComponent('Event created') + '&toastType=success');
-  errorMsg = error.message;
+  if (!recurrenceFreq) {
+    const qr_token = crypto.randomUUID();
+    const { error } = await supabase.from('events').insert({
+      title, description,
+      starts_at: startsAtStr,
+      checkin_opens_at: opensAtStr,
+      late_after_at: lateAfterStr,
+      checkin_closes_at: closesAtStr,
+      qr_token,
+      created_by: session.user.id,
+    });
+    if (!error) return Astro.redirect('/admin?toast=' + encodeURIComponent('Event created') + '&toastType=success');
+    errorMsg = error.message;
+  } else {
+    const startsAt = new Date(startsAtStr);
+    const opensAt = new Date(opensAtStr);
+    const lateAfter = new Date(lateAfterStr);
+    const closesAt = new Date(closesAtStr);
+
+    const byweekday = recurrenceByweekdayRaw
+      ? recurrenceByweekdayRaw.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n))
+      : undefined;
+    const count = recurrenceCountRaw ? Math.max(1, parseInt(recurrenceCountRaw, 10)) : undefined;
+    const until = recurrenceUntilRaw ? new Date(`${recurrenceUntilRaw}T00:00:00`) : undefined;
+
+    if (!count && !until) {
+      errorMsg = 'Pick an end date or a number of occurrences for the series.';
+    } else {
+      const occurrences = expandOccurrences({
+        freq: recurrenceFreq as RecurrenceFreq,
+        byweekday,
+        count,
+        until,
+        startsAtLocal: startsAt,
+        opensOffsetMs: opensAt.getTime() - startsAt.getTime(),
+        lateOffsetMs: lateAfter.getTime() - startsAt.getTime(),
+        closesOffsetMs: closesAt.getTime() - startsAt.getTime(),
+        timezone: recurrenceTimezone,
+      });
+
+      if (occurrences.length === 0) {
+        errorMsg = 'Recurrence settings produced zero occurrences. Check weekdays and end date.';
+      } else {
+        const { data: series, error: seriesErr } = await supabase
+          .from('event_series')
+          .insert({
+            title,
+            description,
+            timezone: recurrenceTimezone,
+            recurrence_freq: recurrenceFreq,
+            recurrence_byweekday: byweekday && byweekday.length > 0 ? byweekday : null,
+            recurrence_count: count ?? null,
+            recurrence_until: recurrenceUntilRaw || null,
+            created_by: session.user.id,
+          })
+          .select('id, qr_token')
+          .single();
+
+        if (seriesErr || !series) {
+          errorMsg = seriesErr?.message ?? 'Failed to create series';
+        } else {
+          const rows = occurrences.map((o, idx) => ({
+            title,
+            description,
+            starts_at: o.starts_at.toISOString(),
+            checkin_opens_at: o.checkin_opens_at.toISOString(),
+            late_after_at: o.late_after_at.toISOString(),
+            checkin_closes_at: o.checkin_closes_at.toISOString(),
+            qr_token: crypto.randomUUID(),
+            created_by: session.user.id,
+            series_id: series.id,
+            occurrence_index: idx,
+          }));
+          const { error: insertErr } = await supabase.from('events').insert(rows);
+          if (insertErr) {
+            await supabase.from('event_series').delete().eq('id', series.id);
+            errorMsg = insertErr.message;
+          } else {
+            return Astro.redirect(
+              '/admin?toast=' +
+                encodeURIComponent(`Created series with ${rows.length} occurrences`) +
+                '&toastType=success'
+            );
+          }
+        }
+      }
+    }
+  }
 }
 ---
 <Layout title="New Event">
@@ -85,6 +173,8 @@ if (Astro.request.method === 'POST') {
             <DateTimePicker name="checkin_closes_at" required client:load />
           </div>
         </div>
+
+        <RecurrenceFields client:load />
 
         <div class="flex justify-end gap-2 pt-2">
           <a href="/admin">
