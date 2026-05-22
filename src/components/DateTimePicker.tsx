@@ -15,11 +15,6 @@ interface Props {
   className?: string;
 }
 
-function toLocalISOString(date: Date) {
-  const tzOffset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
-}
-
 function parseLocalDateTime(value: string | undefined): Date | undefined {
   if (!value) return undefined;
   const d = new Date(value);
@@ -39,7 +34,7 @@ export function DateTimePicker({ name, defaultValue, required, className }: Prop
     const [h, m] = (time || "00:00").split(":").map(Number);
     const d = new Date(date);
     d.setHours(isNaN(h) ? 0 : h, isNaN(m) ? 0 : m, 0, 0);
-    return toLocalISOString(d);
+    return d.toISOString();
   }, [date, time]);
 
   return (
