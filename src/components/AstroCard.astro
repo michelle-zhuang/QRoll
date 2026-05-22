@@ -1,0 +1,13 @@
+---
+import { cn } from "../lib/utils";
+
+interface Props {
+  className?: string;
+}
+
+const { className } = Astro.props;
+---
+
+<div class={cn("rounded-3xl border bg-card text-card-foreground shadow-[0_8px_30px_rgba(47,39,56,0.06),0_2px_8px_rgba(228,193,249,0.12)]", className)}>
+  <slot />
+</div>

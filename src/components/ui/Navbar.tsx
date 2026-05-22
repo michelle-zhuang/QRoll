@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Menu, X, LogOut, LogIn, User, QrCode } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { NavItem } from "./NavItem";
-import { UserMenu } from "./UserMenu";
+import { cn } from "src/lib/utils";
 
 interface NavbarProps {
   user: any;
@@ -10,84 +9,186 @@ interface NavbarProps {
   currentPath: string;
 }
 
+interface NavLink {
+  href: string;
+  label: string;
+}
+
 export const Navbar = ({ user, role, currentPath }: NavbarProps) => {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isUserOpen, setIsUserOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const links = [
-    { href: "/dashboard", label: "Dashboard", show: role !== "guest" },
-    { href: "/admin", label: "Events", show: role === "admin" },
-  ].filter(link => link.show);
+  const links: NavLink[] = [
+    { href: "/dashboard", label: "Dashboard" },
+    ...(role === "admin" ? [{ href: "/admin", label: "Events" }] : []),
+  ].filter(() => role !== "guest");
+
+  const isActive = (href: string) =>
+    href === "/dashboard"
+      ? currentPath === href
+      : currentPath.startsWith(href);
+
+  const initials = (() => {
+    const name = user?.user_metadata?.full_name || user?.email || "";
+    return name
+      .split(/[\s@.]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((s: string) => s[0]?.toUpperCase())
+      .join("");
+  })();
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-4xl px-4">
-      <nav className={`
-        relative px-6 py-3 flex items-center justify-between rounded-full transition-all duration-500
-        bg-slate-900/[0.05] backdrop-blur-xl border border-slate-900/[0.1] 
-        ring-1 ring-inset ring-white/20
-        ${isScrolled ? "shadow-2xl shadow-slate-900/10" : "shadow-xl shadow-slate-900/5"}
-      `}>
-        {/* Logo */}
-        <a href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/20">QR</div>
-          <span className="font-extrabold text-slate-900 tracking-tight hidden sm:block">QRoll</span>
-        </a>
+    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="flex h-14 items-center justify-between">
+          {/* Logo */}
+          <a href="/" className="flex items-center gap-2 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-card border">
+              <QrCode className="h-5 w-5 text-foreground" />
+            </div>
+            <span className="text-base font-semibold tracking-tight">QRoll</span>
+          </a>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-1">
-          {links.map(link => (
-            <NavItem 
-              key={link.href} 
-              href={link.href} 
-              label={link.label} 
-              isActive={currentPath.startsWith(link.href)} 
-            />
-          ))}
-        </div>
-
-        {/* Right Section */}
-        <div className="flex items-center gap-4">
-          <UserMenu user={user} />
+          {/* Desktop nav */}
           {links.length > 0 && (
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            <nav className="hidden md:flex items-center gap-1">
+              {links.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors",
+                    isActive(link.href)
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  )}
+                >
+                  {link.label}
+                  {isActive(link.href) && (
+                    <motion.span
+                      layoutId="navbar-active"
+                      className="absolute inset-x-2 -bottom-[15px] h-0.5 bg-foreground rounded-full"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                    />
+                  )}
+                </a>
+              ))}
+            </nav>
           )}
-        </div>
 
-        {/* Mobile Drawer */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-full left-0 right-0 mt-4 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-3xl p-6 shadow-2xl md:hidden"
-            >
-              <div className="flex flex-col gap-4">
-                {links.map(link => (
-                  <a 
-                    key={link.href}
-                    href={link.href}
-                    className="text-lg font-semibold text-slate-900 px-4 py-2 hover:bg-slate-50 rounded-xl transition-colors"
-                  >
-                    {link.label}
-                  </a>
-                ))}
+          {/* Right section */}
+          <div className="flex items-center gap-2">
+            {!user ? (
+              <a
+                href="/login"
+                className="inline-flex cursor-pointer items-center justify-center gap-2 h-9 px-5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 hover:shadow-[0_4px_14px_rgba(47,39,56,0.18)] active:scale-[0.98] transition-all"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Sign in</span>
+              </a>
+            ) : (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserOpen((v) => !v)}
+                  className="flex cursor-pointer h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-[#A9DEF9] via-[#E4C1F9] to-[#D0F4DE] text-foreground text-xs font-semibold hover:ring-2 hover:ring-ring/60 hover:scale-105 active:scale-95 transition-all overflow-hidden"
+                  aria-label="User menu"
+                >
+                  {user.user_metadata?.avatar_url ? (
+                    <img
+                      src={user.user_metadata.avatar_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : initials ? (
+                    <span>{initials}</span>
+                  ) : (
+                    <User className="h-4 w-4" />
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {isUserOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute right-0 mt-2 w-56 rounded-2xl border bg-popover text-popover-foreground shadow-[0_8px_30px_rgba(47,39,56,0.08),0_2px_8px_rgba(228,193,249,0.18)] p-1.5"
+                    >
+                      <div className="px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Signed in as</p>
+                        <p className="text-sm font-medium truncate">{user.email}</p>
+                      </div>
+                      <div className="h-px bg-border my-1" />
+                      <form action="/api/auth/signout" method="POST">
+                        <button
+                          type="submit"
+                          className="w-full cursor-pointer flex items-center gap-2 px-3 py-2 text-sm rounded-xl text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Sign out</span>
+                        </button>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
-    </div>
+            )}
+
+            {links.length > 0 && (
+              <button
+                onClick={() => setIsMobileOpen((v) => !v)}
+                className="md:hidden cursor-pointer inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="md:hidden overflow-hidden border-t border-border/60 bg-background"
+          >
+            <nav className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex flex-col gap-1">
+              {links.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-sm font-medium transition-colors",
+                    isActive(link.href)
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  )}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
   );
 };

@@ -36,61 +36,63 @@ if (Astro.request.method === 'POST') {
 }
 ---
 <Layout title="New Event">
-  <main class="max-w-3xl mx-auto p-8 my-10">
-    <AstroCard className="p-10 shadow-2xl border-primary/10">
-      <div class="mb-10">
-        <a href="/admin" class="text-primary hover:text-primary/80 flex items-center gap-2 mb-6 font-bold transition-all hover:-translate-x-1 w-fit">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          Back to Dashboard
-        </a>
-        <h1 class="text-4xl font-extrabold tracking-tight">Create New Event</h1>
-        <p class="text-muted-foreground mt-2 text-lg">Define the schedule and details for your event check-in.</p>
+  <main class="max-w-2xl mx-auto p-6 md:p-8">
+    <a href="/admin" class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 mb-6 text-sm transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      Back to events
+    </a>
+
+    <AstroCard className="p-6 md:p-8">
+      <div class="mb-8">
+        <h1 class="text-2xl font-semibold tracking-tight">Create event</h1>
+        <p class="text-muted-foreground mt-1 text-sm">Define the schedule and details for your event check-in.</p>
       </div>
 
       {errorMsg && (
-        <div class="bg-destructive/10 border-l-4 border-destructive p-4 mb-8 rounded-r-lg">
-          <div class="flex items-center gap-3">
-             <svg class="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-             <p class="text-destructive font-bold text-sm">{errorMsg}</p>
-          </div>
+        <div class="bg-destructive/10 border border-destructive/30 text-destructive text-sm p-3 rounded-2xl mb-6 flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <span>{errorMsg}</span>
         </div>
       )}
 
-      <form method="post" class="space-y-8">
-        <div class="space-y-4">
+      <form method="post" class="space-y-6">
+        <div class="space-y-2">
+          <Label htmlFor="title">Event title</Label>
+          <Input id="title" name="title" type="text" required placeholder="Annual General Meeting 2026" />
+        </div>
+
+        <div class="space-y-2">
+          <Label htmlFor="description">Description (optional)</Label>
+          <Textarea id="description" name="description" placeholder="Provide context or instructions for attendees..." className="min-h-[100px] resize-none" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
           <div class="space-y-2">
-            <Label htmlFor="title" className="text-base font-bold">Event Title</Label>
-            <Input id="title" name="title" type="text" required placeholder="Annual General Meeting 2026" className="h-12 text-lg focus-visible:ring-primary/50" />
+            <Label htmlFor="starts_at">Event starts at</Label>
+            <Input id="starts_at" type="datetime-local" name="starts_at" required />
           </div>
-          
           <div class="space-y-2">
-            <Label htmlFor="description" className="text-base font-bold">Description (Optional)</Label>
-            <Textarea id="description" name="description" placeholder="Provide context or instructions for attendees..." className="min-h-[120px] text-base resize-none focus-visible:ring-primary/50" />
+            <Label htmlFor="checkin_opens_at">Check-in opens</Label>
+            <Input id="checkin_opens_at" type="datetime-local" name="checkin_opens_at" required />
+          </div>
+          <div class="space-y-2">
+            <Label htmlFor="late_after_at">Mark late after</Label>
+            <Input id="late_after_at" type="datetime-local" name="late_after_at" required />
+          </div>
+          <div class="space-y-2">
+            <Label htmlFor="checkin_closes_at">Check-in closes</Label>
+            <Input id="checkin_closes_at" type="datetime-local" name="checkin_closes_at" required />
           </div>
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 py-6 border-y border-muted/50">
-          <div class="space-y-2">
-            <Label htmlFor="starts_at" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Event Starts At</Label>
-            <Input id="starts_at" type="datetime-local" name="starts_at" required className="h-11 focus-visible:ring-primary/50" />
-          </div>
-          <div class="space-y-2">
-            <Label htmlFor="checkin_opens_at" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Check-in Opens</Label>
-            <Input id="checkin_opens_at" type="datetime-local" name="checkin_opens_at" required className="h-11 focus-visible:ring-primary/50 border-green-200" />
-          </div>
-          <div class="space-y-2">
-            <Label htmlFor="late_after_at" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Mark Late After</Label>
-            <Input id="late_after_at" type="datetime-local" name="late_after_at" required className="h-11 focus-visible:ring-primary/50 border-orange-200" />
-          </div>
-          <div class="space-y-2">
-            <Label htmlFor="checkin_closes_at" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Check-in Closes</Label>
-            <Input id="checkin_closes_at" type="datetime-local" name="checkin_closes_at" required className="h-11 focus-visible:ring-primary/50 border-red-200" />
-          </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <a href="/admin">
+            <AstroButton type="button" variant="outline">Cancel</AstroButton>
+          </a>
+          <AstroButton type="submit">
+            Create event
+          </AstroButton>
         </div>
-        
-        <AstroButton type="submit" className="w-full h-14 text-xl font-extrabold shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 active:translate-y-0">
-          Create and Generate QR Code
-        </AstroButton>
       </form>
     </AstroCard>
   </main>

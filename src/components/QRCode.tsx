@@ -6,7 +6,7 @@ export default function QRCode({ value }: { value: string }) {
 
   useEffect(() => {
     if (canvasRef.current) {
-      QRCodeLib.toCanvas(canvasRef.current, value, { width: 300 }, (error) => {
+      QRCodeLib.toCanvas(canvasRef.current, value, { width: 300 }, (error: Error | null | undefined) => {
         if (error) console.error(error);
       });
     }
