@@ -346,7 +346,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
     <>
       <div className="relative">
         <div className="overflow-x-auto -mx-6 [scrollbar-width:thin]">
-          <table className="border-separate border-spacing-y-1 min-w-full">
+          <table className="border-separate border-spacing-y-1">
           <thead>
             <tr>
               <th className="sticky left-0 bg-card z-10 text-left pl-6 pr-3 pb-2 font-medium text-xs text-muted-foreground shadow-[6px_0_0_0_var(--color-card)]">
@@ -379,13 +379,14 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                     const overridden = hasOverride(a.name, d);
                     return (
                       <td key={d} className="px-0.5 py-0.5">
+                        <div className="w-7 mx-auto flex justify-center">
                         <button
                           type="button"
                           onClick={e => onCellClick(a.name, d, e)}
                           onMouseEnter={e => onCellEnter(a.name, d, e)}
                           onMouseLeave={onCellLeave}
                           className={cn(
-                            "relative h-6 w-6 rounded-md mx-auto cursor-pointer transition-all hover:scale-125 hover:shadow-md hover:z-10 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                            "relative h-6 w-6 rounded-md cursor-pointer transition-all hover:scale-125 hover:shadow-md hover:z-10 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                             statusClass(rec?.status)
                           )}
                           aria-label={`${a.name} ${d} ${statusLabel(rec?.status)}`}
@@ -399,6 +400,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                             />
                           )}
                         </button>
+                        </div>
                       </td>
                     );
                   })}
