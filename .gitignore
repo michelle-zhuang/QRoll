@@ -26,3 +26,6 @@ pnpm-debug.log*
 # superpowers brainstorm artifacts (local only)
 .superpowers/
 
+# vercel
+.vercel/
+

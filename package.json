@@ -13,8 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@astrojs/node": "^10.1.1",
     "@astrojs/react": "^5.0.5",
+    "@astrojs/vercel": "^10.0.7",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "^0.10.3",
