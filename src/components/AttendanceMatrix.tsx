@@ -344,12 +344,13 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
 
   return (
     <>
-      <div className="overflow-x-auto -mx-6 px-6">
-        <table className="border-separate border-spacing-y-1">
+      <div className="relative">
+        <div className="overflow-x-auto -mx-6 px-6 [scrollbar-width:thin]">
+          <table className="border-separate border-spacing-y-1 min-w-full">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-card z-10 text-left pr-3 pb-2 font-medium text-xs text-muted-foreground min-w-[160px]">
-                Attendee
+              <th className="sticky left-0 bg-card z-10 text-left pr-3 pb-2 font-medium text-xs text-muted-foreground">
+                <div className="w-[140px] sm:w-[180px]">Attendee</div>
               </th>
               {dates.map(d => (
                 <th
@@ -369,8 +370,8 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
               const stat = stats.find(s => s.name === a.name)!;
               return (
                 <tr key={a.name} className="group">
-                  <td className="sticky left-0 bg-card group-hover:bg-muted/40 z-10 pr-3 py-1 text-sm font-medium whitespace-nowrap transition-colors">
-                    {a.name}
+                  <td className="sticky left-0 bg-card group-hover:bg-muted/40 z-10 pr-3 py-1 text-sm font-medium transition-colors">
+                    <div className="w-[140px] sm:w-[180px] truncate" title={a.name}>{a.name}</div>
                   </td>
                   {dates.map(d => {
                     const rec = recordIndex[a.name]?.[d];
@@ -419,7 +420,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
             })}
             <tr>
               <td className="sticky left-0 bg-card z-10 pr-3 pt-3 text-xs font-medium text-muted-foreground whitespace-nowrap">
-                Total present
+                <div className="w-[140px] sm:w-[180px]">Total present</div>
               </td>
               {totalsByDate.map(t => (
                 <td
@@ -433,6 +434,8 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
             </tr>
           </tbody>
         </table>
+        </div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card to-transparent sm:hidden" aria-hidden />
       </div>
 
       {renderTooltip()}

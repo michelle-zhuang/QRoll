@@ -45,12 +45,12 @@ export function DateTimePicker({ name, defaultValue, required, className }: Prop
             type="button"
             variant="outline"
             className={cn(
-              "flex-1 justify-start text-left font-normal h-11 rounded-2xl",
+              "flex-1 min-w-0 sm:flex-none sm:w-56 justify-start text-left font-normal h-11 rounded-2xl",
               !date && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date ? format(date, "PPP") : "Pick a date"}
+            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+            <span className="truncate">{date ? format(date, "PPP") : "Pick a date"}</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -68,7 +68,7 @@ export function DateTimePicker({ name, defaultValue, required, className }: Prop
         type="time"
         value={time}
         onChange={e => setTime(e.target.value)}
-        className="w-32 h-11"
+        className="w-32 sm:w-40 h-11"
       />
       <input type="hidden" name={name} value={combined} required={required} />
     </div>
