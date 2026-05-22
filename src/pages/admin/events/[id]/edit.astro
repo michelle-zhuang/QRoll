@@ -6,6 +6,7 @@ import AstroButton from '../../../../components/AstroButton.astro';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Textarea } from '../../../../components/ui/textarea';
+import { DateTimePicker } from '../../../../components/DateTimePicker';
 
 const { id } = Astro.params;
 const supabase = createSupabaseClient(Astro.cookies);
@@ -30,7 +31,7 @@ if (Astro.request.method === 'POST') {
     title, description, starts_at, checkin_opens_at, late_after_at, checkin_closes_at
   }).eq('id', id);
 
-  if (!error) return Astro.redirect(`/admin/events/${id}`);
+  if (!error) return Astro.redirect(`/admin/events/${id}?toast=` + encodeURIComponent('Event updated') + '&toastType=success');
   errorMsg = error.message;
 }
 
@@ -80,22 +81,22 @@ const closesAt = formatDateTime(event.checkin_closes_at);
           <Textarea id="description" name="description" placeholder="Provide context or instructions for attendees..." className="min-h-[100px] resize-none">{event.description}</Textarea>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
+        <div class="grid grid-cols-1 gap-4 pt-4 border-t">
           <div class="space-y-2">
-            <Label htmlFor="starts_at">Event starts at</Label>
-            <Input id="starts_at" type="datetime-local" name="starts_at" value={startsAt} required />
+            <Label>Event starts at</Label>
+            <DateTimePicker name="starts_at" defaultValue={startsAt} required client:load />
           </div>
           <div class="space-y-2">
-            <Label htmlFor="checkin_opens_at">Check-in opens</Label>
-            <Input id="checkin_opens_at" type="datetime-local" name="checkin_opens_at" value={opensAt} required />
+            <Label>Check-in opens</Label>
+            <DateTimePicker name="checkin_opens_at" defaultValue={opensAt} required client:load />
           </div>
           <div class="space-y-2">
-            <Label htmlFor="late_after_at">Mark late after</Label>
-            <Input id="late_after_at" type="datetime-local" name="late_after_at" value={lateAt} required />
+            <Label>Mark late after</Label>
+            <DateTimePicker name="late_after_at" defaultValue={lateAt} required client:load />
           </div>
           <div class="space-y-2">
-            <Label htmlFor="checkin_closes_at">Check-in closes</Label>
-            <Input id="checkin_closes_at" type="datetime-local" name="checkin_closes_at" value={closesAt} required />
+            <Label>Check-in closes</Label>
+            <DateTimePicker name="checkin_closes_at" defaultValue={closesAt} required client:load />
           </div>
         </div>
 

@@ -2,8 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import AstroButton from '../components/AstroButton.astro';
 import AstroCard from '../components/AstroCard.astro';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
+import { EmailAuthForm } from '../components/EmailAuthForm';
 import { FcGoogle } from 'react-icons/fc';
 
 const next = Astro.url.searchParams.get('next') || '/dashboard';
@@ -54,37 +53,7 @@ const emailUrl = `/api/auth/email?next=${encodeURIComponent(next)}`;
         </div>
       </div>
 
-      <form action={emailUrl} method="post" class="space-y-4">
-        <div class="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            required
-            placeholder="you@example.com"
-          />
-        </div>
-        <div class="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            required
-            placeholder="••••••••"
-          />
-        </div>
-
-        <div class="pt-2 flex flex-col gap-2">
-          <AstroButton type="submit" name="type" value="signin" className="w-full">
-            Sign in
-          </AstroButton>
-          <AstroButton type="submit" name="type" value="signup" variant="ghost" className="w-full">
-            Create an account
-          </AstroButton>
-        </div>
-      </form>
+      <EmailAuthForm endpoint={emailUrl} client:load />
     </AstroCard>
   </main>
 </Layout>
