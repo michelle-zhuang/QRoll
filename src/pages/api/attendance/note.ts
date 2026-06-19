@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseClient } from '../../../lib/supabase';
+import { fromZonedTime } from 'date-fns-tz';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const supabase = createSupabaseClient(cookies);
@@ -27,9 +28,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   // Find the event row that matches this date (historical or live).
-  // Strategy: pick the event whose starts_at falls on the same calendar date.
-  const dayStart = new Date(`${date}T00:00:00.000Z`).toISOString();
-  const dayEnd = new Date(`${date}T23:59:59.999Z`).toISOString();
+  // Strategy: pick the event whose starts_at falls on the same calendar date in Pacific Time.
+  const TZ = 'America/Los_Angeles';
+  const dayStart = fromZonedTime(`${date}T00:00:00`, TZ).toISOString();
+  const dayEnd = fromZonedTime(`${date}T23:59:59.999`, TZ).toISOString();
 
   const { data: events } = await supabase
     .from('events')
