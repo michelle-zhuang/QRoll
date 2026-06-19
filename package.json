@@ -15,7 +15,6 @@
   "dependencies": {
     "@astrojs/node": "^10.1.1",
     "@astrojs/react": "^5.0.5",
-    "@astrojs/tailwind": "^6.0.2",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
     "@tanstack/react-table": "^8.21.3",
@@ -24,12 +23,17 @@
     "lucide-react": "^1.16.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tailwindcss": "^4.3.0"
+    "react-dom": "^19.2.6"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@astrojs/tailwind": "^6.0.2",
     "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   }
 }
