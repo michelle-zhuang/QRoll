@@ -1,5 +1,13 @@
 ---
-// Auth check will go here
+import { createSupabaseClient } from '../../lib/supabase';
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+
+const { data: events } = await supabase.from('events').select('*').order('created_at', { ascending: false });
 ---
 <html lang="en">
 <head>
@@ -7,5 +15,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard</title>
 </head>
-<body><h1>Admin Dashboard</h1></body>
+<body class="bg-gray-50">
+  <main class="max-w-4xl mx-auto p-8">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold">Admin Dashboard</h1>
+      <a href="/admin/events/new" class="bg-blue-600 text-white px-4 py-2 rounded">New Event</a>
+    </div>
+    <div class="grid gap-4">
+      {events?.map(event => (
+        <div class="bg-white p-4 shadow rounded flex justify-between items-center">
+          <div>
+            <h2 class="text-xl font-bold">{event.title}</h2>
+            <p class="text-gray-600">{new Date(event.starts_at).toLocaleString()}</p>
+          </div>
+          <a href={`/admin/events/${event.id}`} class="text-blue-600 hover:underline">View Details</a>
+        </div>
+      ))}
+      {(!events || events.length === 0) && <p class="text-gray-500">No events found.</p>}
+    </div>
+  </main>
+</body>
 </html>

@@ -1,0 +1,72 @@
+---
+import { createSupabaseClient } from '../../../lib/supabase';
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+
+let errorMsg = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const title = formData.get('title');
+  const description = formData.get('description');
+  const starts_at = formData.get('starts_at');
+  const checkin_opens_at = formData.get('checkin_opens_at');
+  const late_after_at = formData.get('late_after_at');
+  const checkin_closes_at = formData.get('checkin_closes_at');
+  const qr_token = crypto.randomUUID();
+
+  const { error } = await supabase.from('events').insert({
+    title, description, starts_at, checkin_opens_at, late_after_at, checkin_closes_at, qr_token,
+    created_by: session.user.id
+  });
+
+  if (!error) return Astro.redirect('/admin');
+  errorMsg = error.message;
+}
+---
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New Event</title>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-2xl mx-auto p-8 bg-white shadow mt-10 rounded">
+    <h1 class="text-2xl font-bold mb-6">Create New Event</h1>
+    {errorMsg && <p class="text-red-600 mb-4">{errorMsg}</p>}
+    <form method="post" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium">Title</label>
+        <input name="title" type="text" required class="w-full border p-2 rounded" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Description</label>
+        <textarea name="description" class="w-full border p-2 rounded"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium">Starts At</label>
+          <input type="datetime-local" name="starts_at" required class="w-full border p-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Check-in Opens</label>
+          <input type="datetime-local" name="checkin_opens_at" required class="w-full border p-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Late After</label>
+          <input type="datetime-local" name="late_after_at" required class="w-full border p-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Check-in Closes</label>
+          <input type="datetime-local" name="checkin_closes_at" required class="w-full border p-2 rounded" />
+        </div>
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded font-bold">Create Event</button>
+    </form>
+  </main>
+</body>
+</html>
