@@ -1,0 +1,83 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { createSupabaseClient } from '../../../lib/supabase';
+import QRCode from '../../../components/QRCode';
+
+const { id } = Astro.params;
+const supabase = createSupabaseClient(Astro.cookies);
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+// Check if user is admin
+const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+if (!profile || profile.role !== 'admin') {
+  return Astro.redirect('/dashboard');
+}
+
+const { data: event } = await supabase.from('events').select('*').eq('id', id).single();
+if (!event) return Astro.redirect('/admin');
+
+const checkinUrl = `${Astro.url.origin}/checkin/${event.qr_token}`;
+
+const { data: attendance } = await supabase
+  .from('attendance')
+  .select('*, profiles(full_name, email)')
+  .eq('event_id', id)
+  .order('checked_in_at', { ascending: false });
+---
+
+<Layout title={`${event.title} - Details`}>
+  <main class="max-w-4xl mx-auto p-8">
+    <a href="/admin" class="text-blue-600 hover:underline">← Back to Dashboard</a>
+    <h1 class="text-3xl font-bold my-4">{event.title}</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      <div class="bg-white p-6 shadow rounded">
+        <h2 class="text-xl font-bold mb-4">Event Details</h2>
+        <p class="mb-2"><strong>Starts:</strong> {new Date(event.starts_at).toLocaleString()}</p>
+        <p class="mb-2"><strong>Check-in Opens:</strong> {new Date(event.checkin_opens_at).toLocaleString()}</p>
+        <p class="mb-2"><strong>Late After:</strong> {new Date(event.late_after_at).toLocaleString()}</p>
+        <p class="mb-2"><strong>Check-in Closes:</strong> {new Date(event.checkin_closes_at).toLocaleString()}</p>
+      </div>
+      <div class="bg-white p-6 shadow rounded flex flex-col items-center">
+        <h2 class="text-xl font-bold mb-4">QR Code</h2>
+        <QRCode value={checkinUrl} client:load />
+        <p class="mt-4 text-sm text-gray-500 break-all">{checkinUrl}</p>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 shadow rounded">
+      <h2 class="text-xl font-bold mb-4">Attendance ({attendance?.length || 0})</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b">
+              <th class="py-2">Name</th>
+              <th class="py-2">Status</th>
+              <th class="py-2">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {attendance?.map(record => (
+              <tr class="border-b">
+                <td class="py-2">{(record.profiles as any)?.full_name || (record.profiles as any)?.email}</td>
+                <td class="py-2">
+                  <span class={record.status === 'on_time' ? 'text-green-600 font-medium' : 'text-orange-600 font-medium'}>
+                    {record.status === 'on_time' ? 'On Time' : 'Late'}
+                  </span>
+                </td>
+                <td class="py-2">{new Date(record.checked_in_at).toLocaleTimeString()}</td>
+              </tr>
+            ))}
+            {(!attendance || attendance.length === 0) && (
+              <tr>
+                <td colspan="3" class="py-8 text-center text-gray-500">No attendance records yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</Layout>
