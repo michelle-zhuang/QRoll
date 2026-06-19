@@ -6,6 +6,7 @@ import AstroButton from '../../components/AstroButton.astro';
 import AstroBadge from '../../components/AstroBadge.astro';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { ArrowLeft, ChevronDown, Trash2 } from 'lucide-react';
 
 const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
@@ -74,7 +75,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
 <Layout title="Roster">
   <main class="max-w-5xl mx-auto p-6 md:p-8">
     <a href="/admin" class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 mb-6 text-sm transition-colors">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      <ArrowLeft className="w-4 h-4" />
       Back to events
     </a>
 
@@ -135,7 +136,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
                 <div class="flex items-center gap-2 shrink-0">
                   <span class="text-xs text-muted-foreground group-open:hidden">Manage</span>
                   <span class="text-xs text-muted-foreground hidden group-open:inline">Close</span>
-                  <svg class="w-4 h-4 text-muted-foreground group-open:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground group-open:rotate-180 transition-transform duration-200" />
                 </div>
               </summary>
 
@@ -175,7 +176,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
                   <input type="hidden" name="_action" value="delete" />
                   <input type="hidden" name="id" value={m.id} />
                   <AstroButton type="submit" variant="destructive" size="sm" className="w-full sm:w-auto mt-6">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"></path></svg>
+                    <Trash2 className="w-4 h-4 mr-2" />
                     Remove member
                   </AstroButton>
                 </form>

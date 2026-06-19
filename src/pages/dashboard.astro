@@ -7,6 +7,7 @@ import AstroButton from '../components/AstroButton.astro';
 import { AttendanceMatrix } from '../components/AttendanceMatrix';
 import { PerEventStackedBars, TopAttendeesChart } from '../components/DashboardCharts';
 import type { AttendanceData, AttendanceStatus } from '../lib/attendanceTypes';
+import { Users, Calendar } from 'lucide-react';
 
 const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
@@ -145,13 +146,13 @@ const hasData = roster.length > 0 && events.length > 0;
         <div class="flex items-center gap-2">
           <a href="/admin/roster">
             <AstroButton variant="outline" size="sm">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+              <Users className="w-4 h-4" />
               Roster
             </AstroButton>
           </a>
           <a href="/admin">
             <AstroButton variant="outline" size="sm">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-12a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+              <Calendar className="w-4 h-4" />
               Manage events
             </AstroButton>
           </a>
@@ -162,7 +163,7 @@ const hasData = roster.length > 0 && events.length > 0;
     {!hasData ? (
       <AstroCard className="p-12 text-center">
         <div class="inline-flex p-3 rounded-full bg-muted mb-4">
-          <svg class="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          <Calendar className="w-6 h-6 text-muted-foreground" />
         </div>
         <p class="text-base font-medium">No attendance data yet</p>
         <p class="text-sm text-muted-foreground mt-1">{isAdmin ? 'Create your first event or seed the roster to get started.' : 'Once events are recorded you\'ll see analytics here.'}</p>
