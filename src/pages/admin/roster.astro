@@ -113,7 +113,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
           const linkedProfile = profiles?.find(p => p.id === m.claimed_user_id);
           return (
             <details class="group border-b border-border last:border-0 [&_summary::-webkit-details-marker]:hidden">
-              <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors list-none outline-none focus-visible:bg-muted/40">
+              <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-all duration-200 ease-out hover:pl-5 list-none outline-none focus-visible:bg-muted/40">
                 <div class="flex items-center gap-3 min-w-0">
                   <div class="h-9 w-9 rounded-full bg-accent/20 text-accent-foreground flex items-center justify-center font-bold text-sm shrink-0">
                     {m.full_name?.charAt(0).toUpperCase()}
@@ -140,7 +140,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
                 </div>
               </summary>
 
-              <div class="p-4 bg-muted/20 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+              <div class="p-4 bg-muted/20 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end group-open:animate-slide-down origin-top">
                 <form method="post" class="space-y-1.5">
                   <input type="hidden" name="_action" value="update_email" />
                   <input type="hidden" name="id" value={m.id} />
