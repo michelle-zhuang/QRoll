@@ -78,7 +78,7 @@ const closesAt = formatDateTime(event.checkin_closes_at);
 
         <div class="space-y-2">
           <Label htmlFor="description">Description (optional)</Label>
-          <Textarea id="description" name="description" placeholder="Provide context or instructions for attendees..." className="min-h-[100px] resize-none">{event.description}</Textarea>
+          <Textarea id="description" name="description" placeholder="Provide context or instructions for attendees..." className="min-h-[100px] resize-none" defaultValue={event.description || ''} />
         </div>
 
         <div class="grid grid-cols-1 gap-4 pt-4 border-t">

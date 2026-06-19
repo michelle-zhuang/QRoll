@@ -30,6 +30,21 @@ if (user) {
 <!doctype html>
 <html lang="en">
 	<head>
+		<script is:inline>
+			if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+				window.consoleErrors = [];
+				window.addEventListener('error', e => {
+					window.consoleErrors.push({ type: 'runtime', message: e.message, filename: e.filename, lineno: e.lineno });
+					sessionStorage.setItem('dev_errors', JSON.stringify(window.consoleErrors));
+				});
+				const origError = console.error;
+				console.error = (...args) => {
+					window.consoleErrors.push({ type: 'console', message: args.join(' ') });
+					sessionStorage.setItem('dev_errors', JSON.stringify(window.consoleErrors));
+					origError.apply(console, args);
+				};
+			}
+		</script>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />

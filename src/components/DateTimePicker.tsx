@@ -48,7 +48,7 @@ export function DateTimePicker({ name, defaultValue, required, className, id }: 
             type="button"
             variant="outline"
             className={cn(
-              "flex-1 min-w-0 sm:flex-none sm:w-56 justify-start text-left font-normal h-11 rounded-2xl",
+              "flex-1 min-w-0 justify-start text-left font-normal h-11 rounded-2xl",
               !date && "text-muted-foreground"
             )}
           >
@@ -71,7 +71,7 @@ export function DateTimePicker({ name, defaultValue, required, className, id }: 
         type="time"
         value={time}
         onChange={e => setTime(e.target.value)}
-        className="w-32 sm:w-40 h-11"
+        className="w-32 shrink-0 h-11 px-3"
       />
       <input type="hidden" name={name} value={combined} required={required} />
     </div>
