@@ -1,0 +1,17 @@
+{
+  "impeccable-design-detector": {
+    "PostToolUse": [
+      {
+        "matcher": "replace_file_content|multi_replace_file_content|write_to_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/richardluo/.gemini/skills/impeccable/scripts/hook.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Checking UI changes"
+          }
+        ]
+      }
+    ]
+  }
+}
