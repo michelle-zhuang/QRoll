@@ -5,7 +5,7 @@ import path from 'path';
 import { fromZonedTime } from 'date-fns-tz';
 
 const TZ = 'America/Los_Angeles';
-const DOWNLOADS_DIR = '/Users/richardluo/Downloads';
+const DOWNLOADS_DIR = '/Users/richardluo/Downloads/attendance';
 
 // Parse .env manually to support running with node directly
 const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
@@ -35,10 +35,78 @@ function getLocalDateStr(date) {
   return `${year}-${month}-${day}`;
 }
 
+// Helper to get event timing config based on date and weekday
+function getEventTiming(localDate, weekdayName) {
+  let startLocalStr;
+  let lateOffsetMinutes = 10;
+  
+  if (localDate === '2026-05-07' || localDate === '2026-05-14') {
+    startLocalStr = `${localDate}T18:30:00`;
+  } else if (localDate === '2026-05-30') {
+    startLocalStr = `${localDate}T18:00:00`;
+  } else if (localDate === '2026-06-27') {
+    startLocalStr = `${localDate}T14:30:00`;
+  } else if (weekdayName === 'Thursday') {
+    startLocalStr = `${localDate}T19:00:00`;
+  } else if (weekdayName === 'Saturday') {
+    startLocalStr = `${localDate}T15:30:00`;
+  } else {
+    // Default fallback
+    startLocalStr = `${localDate}T19:00:00`;
+  }
+  
+  const startsAt = fromZonedTime(startLocalStr, TZ);
+  const checkinOpensAt = new Date(startsAt.getTime() - 30 * 60 * 1000);
+  const lateAfterAt = new Date(startsAt.getTime() + lateOffsetMinutes * 60 * 1000);
+  const checkinClosesAt = new Date(startsAt.getTime() + 2 * 60 * 60 * 1000);
+  
+  return { startsAt, checkinOpensAt, lateAfterAt, checkinClosesAt };
+}
+
 // Hardcoded mappings for names that have typos or significant differences
 const NAME_MAPPINGS = {
   'chris feliciano': "Christian 'Chris' Feliicano",
+  "chris feliciano (sorry if i didnt submit this yesterday d: …)": "Christian 'Chris' Feliicano",
 };
+
+const DROPPED_MEMBERS = [
+  'alexis ho',
+  'brandon banks',
+  'sana',
+  'sana samathita zarchi',
+  'joaquin',
+  'joaquin villegas'
+];
+
+// Resolve event for a check-in timestamp (handling late next-day submissions)
+function resolveEventForTimestamp(timestamp, eventDateMap) {
+  const checkinDateStr = getLocalDateStr(timestamp);
+  
+  // 1. If there's an event on the exact calendar date of the check-in, use it
+  if (eventDateMap.has(checkinDateStr)) {
+    return eventDateMap.get(checkinDateStr);
+  }
+  
+  // 2. Otherwise, look for the closest event in the past (up to 3 days ago)
+  const checkinTime = new Date(timestamp).getTime();
+  let closestEvent = null;
+  let minDiff = Infinity;
+  
+  for (const event of eventDateMap.values()) {
+    const eventTime = new Date(event.starts_at).getTime();
+    const diff = checkinTime - eventTime; // positive if event is in the past
+    
+    // Allow matching past events within 3 days (3 * 24 * 60 * 60 * 1000)
+    if (diff >= 0 && diff < 3 * 24 * 60 * 60 * 1000) {
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestEvent = event;
+      }
+    }
+  }
+  
+  return closestEvent;
+}
 
 // Find matching roster member with fuzzy/fallback logic
 function findRosterMember(sheetName, rosterMembers) {
@@ -106,7 +174,7 @@ async function run() {
 
   // Find all attendance XLSX files
   const files = fs.readdirSync(DOWNLOADS_DIR)
-    .filter(file => file.endsWith('.xlsx') && file.toLowerCase().includes('responses'));
+    .filter(file => file.endsWith('.xlsx') && (file.toLowerCase().includes('responses') || /^\d{4}_\d{2}_\d{2}/.test(file)));
   
   console.log(`\nFound ${files.length} attendance files in ${DOWNLOADS_DIR}:`);
   for (const file of files) {
@@ -142,6 +210,11 @@ async function run() {
       const cleanName = nameRaw.trim();
       const localDate = getLocalDateStr(timestamp);
       
+      // Skip dropped members
+      if (DROPPED_MEMBERS.includes(cleanName.toLowerCase())) {
+        continue;
+      }
+      
       // 1. Resolve Roster Member
       let member = findRosterMember(cleanName, rosterMap);
       if (!member) {
@@ -163,26 +236,25 @@ async function run() {
         console.log(`Created roster member: ${member.full_name} (${member.id})`);
       }
       
-      // 2. Resolve Event for this local date
-      let event = eventDateMap.get(localDate);
+      // 2. Resolve Event for this local date (taking late submissions into account)
+      let event = resolveEventForTimestamp(timestamp, eventDateMap);
+      let eventLocalDate = event ? getLocalDateStr(event.starts_at) : localDate;
+      const weekdayName = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long' }).format(timestamp);
+      
+      // Use timing of the event's actual date (or checkin date if creating a new one)
+      const timing = getEventTiming(eventLocalDate, weekdayName);
+      
       if (!event) {
         console.log(`Event not found for local date ${localDate}. Creating historical event...`);
-        
-        // Starts at 7:00 PM local time (19:00) on that day
-        const startsAt = fromZonedTime(`${localDate}T19:00:00`, TZ);
-        const checkinOpensAt = new Date(startsAt.getTime() - 30 * 60 * 1000);
-        const lateAfterAt = new Date(startsAt.getTime() + 15 * 60 * 1000);
-        const checkinClosesAt = new Date(startsAt.getTime() + 2 * 60 * 60 * 1000);
-        
         const { data: newEvent, error: createEventErr } = await supabase
           .from('events')
           .insert({
             title: `Rehearsal — ${localDate}`,
             description: 'Imported historical attendance sheet',
-            starts_at: startsAt.toISOString(),
-            checkin_opens_at: checkinOpensAt.toISOString(),
-            late_after_at: lateAfterAt.toISOString(),
-            checkin_closes_at: checkinClosesAt.toISOString(),
+            starts_at: timing.startsAt.toISOString(),
+            checkin_opens_at: timing.checkinOpensAt.toISOString(),
+            late_after_at: timing.lateAfterAt.toISOString(),
+            checkin_closes_at: timing.checkinClosesAt.toISOString(),
             is_historical: true
           })
           .select()
@@ -197,40 +269,31 @@ async function run() {
         eventDateMap.set(localDate, event);
         newEventsCount++;
         console.log(`Created event: ${event.title} (${event.id})`);
+      } else {
+        // Event exists, update its timing in the database to align with our local starts_at / late_after_at!
+        const { data: updatedEvent, error: updateEventErr } = await supabase
+          .from('events')
+          .update({
+            starts_at: timing.startsAt.toISOString(),
+            checkin_opens_at: timing.checkinOpensAt.toISOString(),
+            late_after_at: timing.lateAfterAt.toISOString(),
+            checkin_closes_at: timing.checkinClosesAt.toISOString()
+          })
+          .eq('id', event.id)
+          .select()
+          .single();
+          
+        if (updateEventErr) {
+          console.error(`Failed to update timing for event ${event.title}:`, updateEventErr);
+        } else {
+          event = updatedEvent;
+          eventDateMap.set(eventLocalDate, event);
+        }
       }
       processedEventIds.add(event.id);
       
       // 3. Calculate status (present or late)
-      const checkinDate = new Date(timestamp);
-      
-      // Get local hour and minute in America/Los_Angeles timezone
-      const timeFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: TZ,
-        hour12: false,
-        hour: 'numeric',
-        minute: 'numeric'
-      });
-      const timeParts = timeFormatter.formatToParts(checkinDate);
-      const hours = parseInt(timeParts.find(p => p.type === 'hour').value, 10);
-      const minutes = parseInt(timeParts.find(p => p.type === 'minute').value, 10);
-      const weekdayName = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long' }).format(checkinDate);
-      let status = 'present';
-      if (localDate === '2026-05-30') {
-        // Special override for Saturday 2026-05-30: Rehearsal started at 6:00pm (18:00). Late is 10+ minutes after start (18:10)
-        if (hours > 18 || (hours === 18 && minutes >= 10)) {
-          status = 'late';
-        }
-      } else if (weekdayName === 'Thursday') {
-        // Thursday start: 7:00pm (19:00). Late is 10+ minutes after start (19:10)
-        if (hours > 19 || (hours === 19 && minutes >= 10)) {
-          status = 'late';
-        }
-      } else if (weekdayName === 'Saturday') {
-        // Saturday start: 3:30pm (15:30). Late is 10+ minutes after start (15:40)
-        if (hours > 15 || (hours === 15 && minutes >= 40)) {
-          status = 'late';
-        }
-      }
+      const status = timestamp > new Date(event.late_after_at) ? 'late' : 'present';
       
       // 4. Upsert Attendance Record
       const note = row['Notes'] || row['Reason'] || row['Note'] || null;
