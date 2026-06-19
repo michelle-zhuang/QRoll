@@ -13,6 +13,7 @@ interface Props {
   defaultValue?: string;
   required?: boolean;
   className?: string;
+  id?: string;
 }
 
 function parseLocalDateTime(value: string | undefined): Date | undefined {
@@ -21,7 +22,8 @@ function parseLocalDateTime(value: string | undefined): Date | undefined {
   return isNaN(d.getTime()) ? undefined : d;
 }
 
-export function DateTimePicker({ name, defaultValue, required, className }: Props) {
+export function DateTimePicker({ name, defaultValue, required, className, id }: Props) {
+
   const [date, setDate] = React.useState<Date | undefined>(() => parseLocalDateTime(defaultValue));
   const [time, setTime] = React.useState<string>(() => {
     const d = parseLocalDateTime(defaultValue);
@@ -42,6 +44,7 @@ export function DateTimePicker({ name, defaultValue, required, className }: Prop
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            id={id}
             type="button"
             variant="outline"
             className={cn(

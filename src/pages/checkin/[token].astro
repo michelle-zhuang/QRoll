@@ -131,20 +131,20 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
         <div class="inline-flex p-3 rounded-full bg-primary/10 text-primary mb-4">
           <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-12a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
         </div>
-        <h1 class="text-2xl font-semibold tracking-tight">{pageTitle}</h1>
-        <p class="text-muted-foreground mt-1 text-sm">Event attendance verification</p>
+        <h1 class="text-2xl font-bold tracking-tight text-balance">{pageTitle}</h1>
+        <p class="text-muted-foreground mt-2 text-sm">Event attendance verification</p>
       </div>
 
       {!event && nextOccurrence ? (
-        <div class="space-y-5">
-          <div class="bg-muted/50 border p-5 rounded-2xl">
-            <p class="text-base font-semibold">No live check-in right now</p>
+        <div class="space-y-6">
+          <div class="bg-muted/50 border p-6 rounded-xl">
+            <p class="text-base font-bold">No live check-in right now</p>
             {nextOccurrence.checkin_opens_at ? (
-              <p class="text-sm text-muted-foreground mt-1">
+              <p class="text-sm text-muted-foreground mt-2">
                 Next session opens {new Date(nextOccurrence.checkin_opens_at).toLocaleString()}
               </p>
             ) : (
-              <p class="text-sm text-muted-foreground mt-1">No upcoming sessions are scheduled.</p>
+              <p class="text-sm text-muted-foreground mt-2">No upcoming sessions are scheduled.</p>
             )}
           </div>
           <a href="/dashboard" class="block">
@@ -152,14 +152,14 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
           </a>
         </div>
       ) : success ? (
-        <div class="space-y-5">
-          <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl text-emerald-700">
+        <div class="space-y-6">
+          <div class="bg-emerald-50 border border-emerald-200 p-6 rounded-xl text-emerald-700">
             <div class="flex justify-center mb-2">
               <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
-            <p class="text-base font-semibold">You're checked in</p>
-            {existing && <p class="text-sm opacity-80 mt-1">Recorded at {new Date(existing.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
-            {message && <p class="mt-3 text-sm">{message}</p>}
+            <p class="text-base font-bold">You're checked in</p>
+            {existing && <p class="text-sm opacity-80 mt-2">Recorded at {new Date(existing.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
+            {message && <p class="mt-4 text-sm">{message}</p>}
           </div>
           <a href="/dashboard" class="block">
             <AstroButton variant="outline" className="w-full">
@@ -168,11 +168,11 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
           </a>
         </div>
       ) : (
-        <div class="space-y-5">
+        <div class="space-y-6">
           <p class="text-sm text-muted-foreground leading-relaxed">Confirm your presence for <span class="font-medium text-foreground">{event!.title}</span>.</p>
 
           {message && (
-            <div class="bg-destructive/10 border border-destructive/30 p-3 rounded-2xl text-destructive text-sm">
+            <div class="bg-destructive/10 border border-destructive/30 p-4 rounded-xl text-destructive text-sm">
               {message}
             </div>
           )}

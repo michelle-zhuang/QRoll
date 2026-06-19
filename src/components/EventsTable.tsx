@@ -52,7 +52,7 @@ export function EventsTable({ events }: Props) {
           const ev = row.original;
           return (
             <div className="flex items-center gap-2 min-w-0">
-              <span className={`font-medium truncate ${ev.cancelled_at ? "line-through text-muted-foreground" : ""}`}>
+              <span className={`text-sm font-medium truncate ${ev.cancelled_at ? "line-through text-muted-foreground" : ""}`}>
                 {ev.title}
               </span>
               {ev.is_historical && <Badge variant="outline">Historical</Badge>}
@@ -157,7 +157,7 @@ export function EventsTable({ events }: Props) {
 
   if (!events.length) {
     return (
-      <div className="border border-dashed rounded-3xl text-center py-16 px-6 flex flex-col items-center bg-card">
+      <div className="border border-dashed rounded-xl text-center py-16 px-6 flex flex-col items-center bg-card">
         <div className="p-3 rounded-full bg-muted mb-4">
           <svg
             className="w-8 h-8 text-muted-foreground"
@@ -187,7 +187,7 @@ export function EventsTable({ events }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
@@ -198,7 +198,7 @@ export function EventsTable({ events }: Props) {
         />
       </div>
 
-      <div className="hidden md:block rounded-3xl border bg-card overflow-x-auto">
+      <div className="hidden md:block rounded-xl border bg-card overflow-x-auto">
         <table className="w-full min-w-[640px]">
           <thead className="border-b bg-muted/30">
             {table.getHeaderGroups().map(hg => (
@@ -241,11 +241,11 @@ export function EventsTable({ events }: Props) {
           return (
             <div
               key={row.id}
-              className="rounded-3xl border bg-card p-4 flex flex-col gap-3"
+              className="rounded-xl border bg-card p-4 flex flex-col gap-4"
             >
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <span
-                  className={`font-medium truncate min-w-0 ${
+                  className={`text-sm font-medium truncate min-w-0 ${
                     ev.cancelled_at ? "line-through text-muted-foreground" : ""
                   }`}
                 >
@@ -288,7 +288,7 @@ export function EventsTable({ events }: Props) {
           );
         })}
         {!table.getRowModel().rows.length && (
-          <div className="rounded-3xl border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
             No events match "{filter}"
           </div>
         )}
