@@ -1,0 +1,204 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import { createSupabaseClient } from '../../../../lib/supabase';
+import QRCode from '../../../../components/QRCode';
+import AstroCard from '../../../../components/AstroCard.astro';
+import AstroButton from '../../../../components/AstroButton.astro';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../../../components/ui/table";
+
+const { id } = Astro.params;
+const supabase = createSupabaseClient(Astro.cookies);
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+// Check if user is admin
+const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+if (!profile || profile.role !== 'admin') {
+  return Astro.redirect('/dashboard');
+}
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  if (formData.get('_action') === 'delete') {
+    const { error } = await supabase.from('events').delete().eq('id', id);
+    if (!error) return Astro.redirect('/admin');
+    // For simplicity, we could handle error here, but redirecting to admin on success is the main path
+  }
+}
+
+const { data: event } = await supabase.from('events').select('*').eq('id', id).single();
+if (!event) return Astro.redirect('/admin');
+
+const checkinUrl = `${Astro.url.origin}/checkin/${event.qr_token}`;
+
+const { data: attendance } = await supabase
+  .from('attendance')
+  .select('*, profiles(full_name, email)')
+  .eq('event_id', id)
+  .order('checked_in_at', { ascending: false });
+---
+
+<Layout title={`${event.title} - Details`}>
+  <main class="max-w-6xl mx-auto p-8">
+    <div class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div>
+        <a href="/admin" class="text-primary hover:text-primary/80 flex items-center gap-2 mb-6 font-bold transition-all hover:-translate-x-1 w-fit">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          Back to Admin Panel
+        </a>
+        <h1 class="text-4xl font-extrabold tracking-tight">{event.title}</h1>
+        <p class="text-muted-foreground mt-2 text-lg font-medium">Monitoring real-time attendance and event status.</p>
+      </div>
+       <div class="flex gap-3">
+         <a href={`/admin/events/${id}/edit`}>
+           <AstroButton variant="outline" className="font-bold border-2">
+              Edit Event
+           </AstroButton>
+         </a>
+         <form method="post" onsubmit="return confirm('Are you sure you want to cancel and delete this event? This action cannot be undone.');">
+           <input type="hidden" name="_action" value="delete" />
+           <AstroButton type="submit" variant="destructive" className="font-bold">
+              Cancel Event
+           </AstroButton>
+         </form>
+       </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+      <!-- Event Stats/Info -->
+      <div class="lg:col-span-2 space-y-8">
+        <AstroCard className="p-8 h-full border-primary/5">
+          <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-primary/10 text-primary">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            Event Overview
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
+            <div class="space-y-1">
+              <p class="text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Scheduled For</p>
+              <p class="text-xl font-bold">{new Date(event.starts_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Check-in Window Opens</p>
+              <p class="text-xl font-bold text-green-600">{new Date(event.checkin_opens_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Late Threshold</p>
+              <p class="text-xl font-bold text-orange-600">{new Date(event.late_after_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Entry Closes At</p>
+              <p class="text-xl font-bold text-destructive">{new Date(event.checkin_closes_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+          </div>
+          {event.description && (
+            <div class="mt-10 pt-8 border-t border-muted/50">
+              <p class="text-xs font-extrabold text-muted-foreground uppercase tracking-widest mb-4">Event Description</p>
+              <p class="text-muted-foreground leading-relaxed text-lg italic">"{event.description}"</p>
+            </div>
+          )}
+        </AstroCard>
+      </div>
+
+      <!-- QR Code Section -->
+      <AstroCard className="p-8 shadow-2xl shadow-primary/5 flex flex-col items-center text-center border-primary/20 bg-gradient-to-b from-card to-muted/20">
+        <h2 class="text-2xl font-bold mb-8 tracking-tight">Check-in QR Code</h2>
+        <div class="bg-white p-6 rounded-2xl shadow-inner border-4 border-muted/50 mb-8 hover:scale-105 transition-transform">
+          <QRCode value={checkinUrl} client:load />
+        </div>
+        <div class="w-full space-y-4">
+          <div class="space-y-2 text-left">
+            <p class="text-xs font-bold text-muted-foreground uppercase tracking-widest">Secure Token URL</p>
+            <div class="flex items-center gap-2 bg-muted p-3 rounded-lg border">
+              <code class="text-xs font-mono break-all line-clamp-1 flex-1">
+                {checkinUrl}
+              </code>
+              <AstroButton size="icon" variant="ghost" className="h-8 w-8 hover:bg-primary/10">
+                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+              </AstroButton>
+            </div>
+          </div>
+          <AstroButton className="w-full font-bold h-12">
+            Print QR Code Label
+          </AstroButton>
+        </div>
+      </AstroCard>
+    </div>
+
+    <!-- Attendance Table -->
+    <AstroCard className="overflow-hidden border-primary/5">
+      <div class="p-8 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/20">
+        <div>
+          <h2 class="text-3xl font-extrabold tracking-tight">Attendance Logs</h2>
+          <p class="text-muted-foreground font-medium">Verify check-in times and statuses.</p>
+        </div>
+        <div class="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+          {attendance?.length || 0} Registered
+        </div>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent bg-muted/10">
+              <TableHead className="px-8 py-5 text-xs font-black uppercase tracking-widest text-muted-foreground">Attendee</TableHead>
+              <TableHead className="px-8 py-5 text-xs font-black uppercase tracking-widest text-muted-foreground">Verification</TableHead>
+              <TableHead className="px-8 py-5 text-xs font-black uppercase tracking-widest text-muted-foreground">Status</TableHead>
+              <TableHead className="px-8 py-5 text-xs font-black uppercase tracking-widest text-muted-foreground">Time</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {attendance?.map(record => (
+              <TableRow className="group hover:bg-muted/30 transition-all border-muted/50">
+                <TableCell className="px-8 py-6">
+                  <div class="font-black text-lg group-hover:text-primary transition-colors">{(record.profiles as any)?.full_name || 'Anonymous User'}</div>
+                  <div class="text-sm font-medium text-muted-foreground">{(record.profiles as any)?.email}</div>
+                </TableCell>
+                <TableCell className="px-8 py-6">
+                   <div class="flex flex-col gap-1">
+                      <span class="text-[10px] font-bold text-muted-foreground/60 uppercase">IP Address</span>
+                      <code class="text-xs font-mono text-muted-foreground">{record.ip_address || '---'}</code>
+                   </div>
+                </TableCell>
+                <TableCell className="px-8 py-6">
+                  <span class={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-black uppercase tracking-tighter shadow-sm border ${
+                    record.status === 'on_time' 
+                      ? 'bg-green-100/50 text-green-700 border-green-200' 
+                      : 'bg-orange-100/50 text-orange-700 border-orange-200'
+                  }`}>
+                    {record.status === 'on_time' ? '✓ On Time' : '⚠ Late'}
+                  </span>
+                </TableCell>
+                <TableCell className="px-8 py-6 text-base font-bold text-muted-foreground tabular-nums">
+                  {new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </TableCell>
+              </TableRow>
+            ))}
+            {(!attendance || attendance.length === 0) && (
+              <TableRow>
+                <TableCell colSpan={4} className="px-8 py-32 text-center bg-muted/5">
+                  <div class="flex flex-col items-center">
+                    <div class="p-5 rounded-full bg-muted/50 text-muted-foreground/30 mb-6 scale-125">
+                       <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    </div>
+                    <p class="text-muted-foreground text-2xl font-bold italic">Waiting for check-ins...</p>
+                    <p class="text-muted-foreground/60 text-base mt-2">The guest list is currently empty.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </AstroCard>
+  </main>
+</Layout>
