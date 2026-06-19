@@ -14,8 +14,9 @@ if (!session) return Astro.redirect('/login');
 const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
 if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
 
-let errorMsg = '';
-let successMsg = '';
+function toastRedirect(msg: string, type: 'success' | 'error' = 'success') {
+  return Astro.redirect(`/admin/roster?toast=${encodeURIComponent(msg)}&toastType=${type}`);
+}
 
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
@@ -24,38 +25,40 @@ if (Astro.request.method === 'POST') {
   if (action === 'create') {
     const full_name = (formData.get('full_name') || '').toString().trim();
     const email = (formData.get('email') || '').toString().trim() || null;
-    if (!full_name) {
-      errorMsg = 'Name is required.';
-    } else {
-      const { error } = await supabase.from('roster_members').insert({ full_name, email });
-      if (error) errorMsg = error.message;
-      else successMsg = `Added ${full_name}.`;
-    }
-  } else if (action === 'update_email') {
+    if (!full_name) return toastRedirect('Name is required', 'error');
+    const res = await supabase.from('roster_members').insert({ full_name, email });
+    return toastRedirect(res.error ? res.error.message : `Added ${full_name}`, res.error ? 'error' : 'success');
+  }
+  if (action === 'update_email') {
     const id = formData.get('id')?.toString();
     const email = (formData.get('email') || '').toString().trim() || null;
     if (id) {
-      const { error } = await supabase.from('roster_members').update({ email }).eq('id', id);
-      if (error) errorMsg = error.message;
-      else successMsg = 'Email updated. Auto-claim will run when that user signs up.';
+      const res = await supabase.from('roster_members').update({ email }).eq('id', id);
+      return toastRedirect(
+        res.error ? res.error.message : 'Email updated — auto-claim will run when that user signs up',
+        res.error ? 'error' : 'success'
+      );
     }
-  } else if (action === 'link') {
+  }
+  if (action === 'link') {
     const id = formData.get('id')?.toString();
     const userId = formData.get('user_id')?.toString() || null;
     if (id) {
-      const { error } = await supabase
+      const res = await supabase
         .from('roster_members')
         .update({ claimed_user_id: userId })
         .eq('id', id);
-      if (error) errorMsg = error.message;
-      else successMsg = userId ? 'Linked to account.' : 'Unlinked from account.';
+      return toastRedirect(
+        res.error ? res.error.message : userId ? 'Linked to account' : 'Unlinked from account',
+        res.error ? 'error' : 'success'
+      );
     }
-  } else if (action === 'delete') {
+  }
+  if (action === 'delete') {
     const id = formData.get('id')?.toString();
     if (id) {
-      const { error } = await supabase.from('roster_members').delete().eq('id', id);
-      if (error) errorMsg = error.message;
-      else successMsg = 'Member deleted.';
+      const res = await supabase.from('roster_members').delete().eq('id', id);
+      return toastRedirect(res.error ? res.error.message : 'Member deleted', res.error ? 'error' : 'success');
     }
   }
 }
@@ -85,13 +88,6 @@ const unclaimedCount = (roster || []).length - claimedCount;
         <AstroBadge variant="outline">{unclaimedCount} unclaimed</AstroBadge>
       </div>
     </div>
-
-    {errorMsg && (
-      <div class="bg-destructive/10 border border-destructive/30 text-destructive text-sm p-3 rounded-2xl mb-4">{errorMsg}</div>
-    )}
-    {successMsg && (
-      <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm p-3 rounded-2xl mb-4">{successMsg}</div>
-    )}
 
     <!-- Add new member -->
     <AstroCard className="p-5 mb-6">

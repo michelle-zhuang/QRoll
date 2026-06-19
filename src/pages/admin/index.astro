@@ -1,9 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { createSupabaseClient } from '../../lib/supabase';
-import AstroCard from '../../components/AstroCard.astro';
 import AstroButton from '../../components/AstroButton.astro';
-import AstroBadge from '../../components/AstroBadge.astro';
+import { EventsTable } from '../../components/EventsTable';
 
 const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
@@ -37,57 +36,6 @@ const { data: events } = await supabase.from('events').select('*').order('create
       </div>
     </div>
 
-    <div class="grid gap-3">
-      {events?.map(event => (
-        <AstroCard className="group transition-colors hover:border-primary/40">
-          <div class="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div class="flex-1 space-y-2 min-w-0">
-              <div class="flex items-center gap-2">
-                <h2 class="text-lg font-semibold tracking-tight truncate">{event.title}</h2>
-                {event.is_historical && <AstroBadge variant="outline">Historical</AstroBadge>}
-              </div>
-              <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span class="inline-flex items-center gap-1.5 bg-muted/60 px-2.5 py-1 rounded-full">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                  {new Date(event.starts_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-                <span class="inline-flex items-center gap-1.5 bg-muted/60 px-2.5 py-1 rounded-full">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                  {new Date(event.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                {event.description && (
-                  <span class="hidden md:inline-flex items-center text-muted-foreground/70 truncate max-w-xs">
-                    {event.description}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-              <a href={`/admin/events/${event.id}`} class="w-full sm:w-auto">
-                <AstroButton variant="outline" size="sm" className="w-full">
-                  Manage
-                </AstroButton>
-              </a>
-            </div>
-          </div>
-        </AstroCard>
-      ))}
-      {(!events || events.length === 0) && (
-        <AstroCard className="border-dashed">
-          <div class="text-center py-16 px-6 flex flex-col items-center">
-            <div class="p-3 rounded-full bg-muted mb-4">
-              <svg class="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            </div>
-            <p class="text-base font-medium">No events yet</p>
-            <p class="text-sm text-muted-foreground mt-1">Create your first event to generate a check-in QR code.</p>
-            <a href="/admin/events/new" class="mt-5">
-              <AstroButton variant="outline" size="sm">
-                Create first event
-              </AstroButton>
-            </a>
-          </div>
-        </AstroCard>
-      )}
-    </div>
+    <EventsTable events={events || []} client:load />
   </main>
 </Layout>

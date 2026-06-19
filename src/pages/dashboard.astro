@@ -5,6 +5,7 @@ import AstroCard from '../components/AstroCard.astro';
 import AstroBadge from '../components/AstroBadge.astro';
 import AstroButton from '../components/AstroButton.astro';
 import { AttendanceMatrix } from '../components/AttendanceMatrix';
+import { PerEventStackedBars, TopAttendeesChart } from '../components/DashboardCharts';
 import type { AttendanceData, AttendanceStatus } from '../lib/attendanceTypes';
 
 const supabase = createSupabaseClient(Astro.cookies);
@@ -118,7 +119,6 @@ const perEventStats = dates.map(d => {
   });
   return { date: d, present: p, late: l, absent: ab, total: p + l + ab };
 });
-const maxEventTotal = Math.max(1, ...perEventStats.map(e => e.total));
 
 const hasData = roster.length > 0 && events.length > 0;
 ---
@@ -204,41 +204,11 @@ const hasData = roster.length > 0 && events.length > 0;
             <div class="flex items-center justify-between mb-5">
               <div>
                 <h2 class="text-lg font-semibold tracking-tight">Top attendees</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Most events attended</p>
+                <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
               </div>
               <AstroBadge variant="secondary">{roster.length} total</AstroBadge>
             </div>
-            <ol class="space-y-3">
-              {topAttendees.map((a, i) => {
-                const attended = a.present + a.late;
-                return (
-                  <li class="flex items-center gap-3">
-                    <div class={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                      i === 0 ? 'bg-[#E4C1F9] text-[#2F2738]' :
-                      i === 1 ? 'bg-[#A9DEF9] text-[#2F2738]' :
-                      i === 2 ? 'bg-[#D0F4DE] text-[#2F2738]' :
-                      'bg-muted text-muted-foreground'
-                    }`}>{i + 1}</div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-baseline justify-between gap-2">
-                        <p class="text-sm font-medium truncate">{a.name}</p>
-                        <p class="text-sm tabular-nums shrink-0">{attended}/{a.total}</p>
-                      </div>
-                      <div class="mt-1.5 h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
-                        <div class="h-full bg-emerald-300" style={`width:${(a.present / Math.max(a.total, 1)) * 100}%`}></div>
-                        <div class="h-full bg-amber-300" style={`width:${(a.late / Math.max(a.total, 1)) * 100}%`}></div>
-                        <div class="h-full bg-rose-300" style={`width:${(a.absent / Math.max(a.total, 1)) * 100}%`}></div>
-                      </div>
-                      <div class="flex gap-3 text-[10px] text-muted-foreground mt-1">
-                        <span>{a.present} present</span>
-                        {a.late > 0 && <span>{a.late} late</span>}
-                        {a.absent > 0 && <span>{a.absent} absent</span>}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+            <TopAttendeesChart data={topAttendees.map(a => ({ name: a.name, present: a.present, late: a.late, absent: a.absent }))} client:load />
           </AstroCard>
 
           <AstroCard className="p-6">
@@ -246,21 +216,7 @@ const hasData = roster.length > 0 && events.length > 0;
               <h2 class="text-lg font-semibold tracking-tight">Attendance per event</h2>
               <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
             </div>
-            <ul class="space-y-2.5 max-h-[400px] overflow-y-auto pr-2">
-              {perEventStats.map(ev => (
-                <li>
-                  <div class="flex items-baseline justify-between gap-2 mb-1.5">
-                    <p class="text-sm font-medium tabular-nums">{ev.date}</p>
-                    <p class="text-xs text-muted-foreground tabular-nums">{ev.present + ev.late}/{ev.total}</p>
-                  </div>
-                  <div class="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
-                    <div class="h-full bg-emerald-300" style={`width:${(ev.present / maxEventTotal) * 100}%`}></div>
-                    <div class="h-full bg-amber-300" style={`width:${(ev.late / maxEventTotal) * 100}%`}></div>
-                    <div class="h-full bg-rose-300" style={`width:${(ev.absent / maxEventTotal) * 100}%`}></div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <PerEventStackedBars data={perEventStats} client:load />
           </AstroCard>
         </div>
 
