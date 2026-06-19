@@ -204,8 +204,8 @@ const lateMinutesFor = (checkedAt: string) => {
                   <TableCell className="text-sm text-muted-foreground italic">
                     {record.note || '—'}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground tabular-nums">
-                    {new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  <TableCell className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                    {new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </TableCell>
                 </TableRow>
               );

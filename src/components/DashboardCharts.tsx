@@ -56,6 +56,10 @@ interface AttendeeBar {
   absent: number;
 }
 
+function truncateName(name: string, max = 18) {
+  return name.length > max ? `${name.slice(0, max - 1)}…` : name;
+}
+
 export function TopAttendeesChart({ data }: { data: AttendeeBar[] }) {
   return (
     <ChartContainer config={chartConfig} className="h-[420px] w-full aspect-auto">
@@ -69,6 +73,8 @@ export function TopAttendeesChart({ data }: { data: AttendeeBar[] }) {
           axisLine={false}
           width={120}
           tick={{ fontSize: 11 }}
+          interval={0}
+          tickFormatter={(v: string) => truncateName(v)}
         />
         <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />

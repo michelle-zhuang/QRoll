@@ -80,7 +80,7 @@ export function EventsTable({ events }: Props) {
           const v = getValue<string>();
           const d = new Date(v);
           return (
-            <span className="text-sm tabular-nums">
+            <span className="text-sm tabular-nums whitespace-nowrap">
               {d.toLocaleDateString(undefined, {
                 month: "short",
                 day: "numeric",
@@ -102,7 +102,7 @@ export function EventsTable({ events }: Props) {
         cell: ({ getValue }) => {
           const v = getValue<string>();
           return (
-            <span className="text-sm text-muted-foreground tabular-nums">
+            <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
               {new Date(v).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -198,8 +198,8 @@ export function EventsTable({ events }: Props) {
         />
       </div>
 
-      <div className="rounded-3xl border bg-card overflow-hidden">
-        <table className="w-full">
+      <div className="hidden md:block rounded-3xl border bg-card overflow-x-auto">
+        <table className="w-full min-w-[640px]">
           <thead className="border-b bg-muted/30">
             {table.getHeaderGroups().map(hg => (
               <tr key={hg.id}>
@@ -232,6 +232,66 @@ export function EventsTable({ events }: Props) {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="md:hidden space-y-3">
+        {table.getRowModel().rows.map(row => {
+          const ev = row.original;
+          const d = new Date(ev.starts_at);
+          return (
+            <div
+              key={row.id}
+              className="rounded-3xl border bg-card p-4 flex flex-col gap-3"
+            >
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span
+                  className={`font-medium truncate min-w-0 ${
+                    ev.cancelled_at ? "line-through text-muted-foreground" : ""
+                  }`}
+                >
+                  {ev.title}
+                </span>
+                {ev.is_historical && <Badge variant="outline">Historical</Badge>}
+                {ev.series_id && (
+                  <Badge variant="secondary">Recurring</Badge>
+                )}
+                {ev.cancelled_at && (
+                  <Badge variant="destructive">Cancelled</Badge>
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground tabular-nums">
+                {d.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                {" · "}
+                {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {ev.series_id && (
+                  <form method="post" action={`/api/events/${ev.id}/cancel`}>
+                    {ev.cancelled_at && <input type="hidden" name="undo" value="1" />}
+                    <Button type="submit" variant="outline" size="sm">
+                      {ev.cancelled_at ? "Restore" : "Cancel"}
+                    </Button>
+                  </form>
+                )}
+                <a href={`/admin/events/${ev.id}`} className="ml-auto">
+                  <Button variant="outline" size="sm">
+                    Manage
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </a>
+              </div>
+            </div>
+          );
+        })}
+        {!table.getRowModel().rows.length && (
+          <div className="rounded-3xl border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+            No events match "{filter}"
+          </div>
+        )}
       </div>
     </div>
   );
