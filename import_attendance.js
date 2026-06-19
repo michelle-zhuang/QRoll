@@ -215,7 +215,12 @@ async function run() {
       const minutes = parseInt(timeParts.find(p => p.type === 'minute').value, 10);
       const weekdayName = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long' }).format(checkinDate);
       let status = 'present';
-      if (weekdayName === 'Thursday') {
+      if (localDate === '2026-05-30') {
+        // Special override for Saturday 2026-05-30: Rehearsal started at 6:00pm (18:00). Late is 10+ minutes after start (18:10)
+        if (hours > 18 || (hours === 18 && minutes >= 10)) {
+          status = 'late';
+        }
+      } else if (weekdayName === 'Thursday') {
         // Thursday start: 7:00pm (19:00). Late is 10+ minutes after start (19:10)
         if (hours > 19 || (hours === 19 && minutes >= 10)) {
           status = 'late';
