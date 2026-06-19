@@ -28,13 +28,14 @@ export const Navbar = ({ user, role, currentPath }: NavbarProps) => {
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-4xl px-4">
       <nav className={`
-        relative px-6 py-3 flex items-center justify-between rounded-full transition-all duration-300
-        ${isScrolled ? "bg-white/80 backdrop-blur-lg shadow-lg border-white/40" : "bg-white/40 backdrop-blur-sm border-white/20"}
-        border
+        relative px-6 py-3 flex items-center justify-between rounded-full transition-all duration-500
+        bg-slate-900/[0.05] backdrop-blur-xl border border-slate-900/[0.1] 
+        ring-1 ring-inset ring-white/20
+        ${isScrolled ? "shadow-2xl shadow-slate-900/10" : "shadow-xl shadow-slate-900/5"}
       `}>
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">QR</div>
+        <a href="/" className="flex items-center gap-2 group">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/20">QR</div>
           <span className="font-extrabold text-slate-900 tracking-tight hidden sm:block">QRoll</span>
         </a>
 
@@ -53,12 +54,14 @@ export const Navbar = ({ user, role, currentPath }: NavbarProps) => {
         {/* Right Section */}
         <div className="flex items-center gap-4">
           <UserMenu user={user} />
-          <button 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-          >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {links.length > 0 && (
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          )}
         </div>
 
         {/* Mobile Drawer */}

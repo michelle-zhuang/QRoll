@@ -25,7 +25,7 @@ export const UserMenu = ({ user }: UserMenuProps) => {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-400 to-purple-500 border-2 border-white shadow-sm overflow-hidden"
+        className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-400 to-purple-500 border-2 border-white shadow-sm overflow-hidden hover:scale-110 active:scale-95 transition-transform"
       >
         {user.user_metadata?.avatar_url ? (
           <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
@@ -42,10 +42,11 @@ export const UserMenu = ({ user }: UserMenuProps) => {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-50"
+            className="absolute right-0 mt-2 w-56 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-900/10 ring-1 ring-inset ring-white/20 p-2 z-50"
           >
-            <div className="px-3 py-2 border-b border-slate-50 mb-1">
-              <p className="text-xs font-semibold text-slate-900">{user.email}</p>
+            <div className="px-3 py-2 border-b border-slate-100 mb-1">
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Signed in as</p>
+              <p className="text-xs font-semibold text-slate-900 truncate">{user.email}</p>
             </div>
             <form action="/api/auth/signout" method="POST">
               <button
