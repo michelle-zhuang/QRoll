@@ -1,0 +1,171 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { createSupabaseClient } from '../../lib/supabase';
+import AstroCard from '../../components/AstroCard.astro';
+import AstroButton from '../../components/AstroButton.astro';
+import AstroBadge from '../../components/AstroBadge.astro';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+
+let errorMsg = '';
+let successMsg = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('_action');
+
+  if (action === 'create') {
+    const full_name = (formData.get('full_name') || '').toString().trim();
+    const email = (formData.get('email') || '').toString().trim() || null;
+    if (!full_name) {
+      errorMsg = 'Name is required.';
+    } else {
+      const { error } = await supabase.from('roster_members').insert({ full_name, email });
+      if (error) errorMsg = error.message;
+      else successMsg = `Added ${full_name}.`;
+    }
+  } else if (action === 'update_email') {
+    const id = formData.get('id')?.toString();
+    const email = (formData.get('email') || '').toString().trim() || null;
+    if (id) {
+      const { error } = await supabase.from('roster_members').update({ email }).eq('id', id);
+      if (error) errorMsg = error.message;
+      else successMsg = 'Email updated. Auto-claim will run when that user signs up.';
+    }
+  } else if (action === 'link') {
+    const id = formData.get('id')?.toString();
+    const userId = formData.get('user_id')?.toString() || null;
+    if (id) {
+      const { error } = await supabase
+        .from('roster_members')
+        .update({ claimed_user_id: userId })
+        .eq('id', id);
+      if (error) errorMsg = error.message;
+      else successMsg = userId ? 'Linked to account.' : 'Unlinked from account.';
+    }
+  } else if (action === 'delete') {
+    const id = formData.get('id')?.toString();
+    if (id) {
+      const { error } = await supabase.from('roster_members').delete().eq('id', id);
+      if (error) errorMsg = error.message;
+      else successMsg = 'Member deleted.';
+    }
+  }
+}
+
+const [{ data: roster }, { data: profiles }] = await Promise.all([
+  supabase.from('roster_members').select('*').order('full_name', { ascending: true }),
+  supabase.from('profiles').select('id, email, full_name').order('full_name', { ascending: true }),
+]);
+
+const claimedCount = (roster || []).filter(r => r.claimed_user_id).length;
+const unclaimedCount = (roster || []).length - claimedCount;
+---
+<Layout title="Roster">
+  <main class="max-w-5xl mx-auto p-6 md:p-8">
+    <a href="/admin" class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 mb-6 text-sm transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      Back to events
+    </a>
+
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-semibold tracking-tight">Roster</h1>
+        <p class="text-muted-foreground mt-1 text-sm">Members who can attend events. Set an email to auto-link when they sign up, or link manually.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <AstroBadge variant="success">{claimedCount} claimed</AstroBadge>
+        <AstroBadge variant="outline">{unclaimedCount} unclaimed</AstroBadge>
+      </div>
+    </div>
+
+    {errorMsg && (
+      <div class="bg-destructive/10 border border-destructive/30 text-destructive text-sm p-3 rounded-2xl mb-4">{errorMsg}</div>
+    )}
+    {successMsg && (
+      <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm p-3 rounded-2xl mb-4">{successMsg}</div>
+    )}
+
+    <!-- Add new member -->
+    <AstroCard className="p-5 mb-6">
+      <form method="post" class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+        <input type="hidden" name="_action" value="create" />
+        <div class="space-y-1.5">
+          <Label htmlFor="full_name">Full name</Label>
+          <Input id="full_name" name="full_name" required placeholder="Jane Doe" />
+        </div>
+        <div class="space-y-1.5">
+          <Label htmlFor="email">Email (optional)</Label>
+          <Input id="email" name="email" type="email" placeholder="jane@example.com" />
+        </div>
+        <AstroButton type="submit">Add member</AstroButton>
+      </form>
+    </AstroCard>
+
+    <!-- Roster list -->
+    <AstroCard className="overflow-hidden">
+      <div class="divide-y">
+        {(roster || []).map(m => {
+          const linkedProfile = profiles?.find(p => p.id === m.claimed_user_id);
+          return (
+            <div class="p-4 grid grid-cols-1 lg:grid-cols-[1fr_1.2fr_1.2fr_auto] gap-3 items-center">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold truncate">{m.full_name}</p>
+                {linkedProfile ? (
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    <p class="text-xs text-muted-foreground truncate">Linked: {linkedProfile.email}</p>
+                  </div>
+                ) : (
+                  <p class="text-xs text-muted-foreground/60 mt-0.5">Not yet claimed</p>
+                )}
+              </div>
+
+              <form method="post" class="flex items-center gap-2">
+                <input type="hidden" name="_action" value="update_email" />
+                <input type="hidden" name="id" value={m.id} />
+                <Input name="email" type="email" defaultValue={m.email || ''} placeholder="email@example.com" className="h-9 text-sm" />
+                <AstroButton type="submit" variant="outline" size="sm">Save</AstroButton>
+              </form>
+
+              <form method="post" class="flex items-center gap-2">
+                <input type="hidden" name="_action" value="link" />
+                <input type="hidden" name="id" value={m.id} />
+                <select
+                  name="user_id"
+                  class="flex h-9 w-full rounded-2xl border border-input bg-background px-3 py-1 text-sm"
+                >
+                  <option value="">— Unlinked —</option>
+                  {profiles?.map(p => (
+                    <option value={p.id} selected={m.claimed_user_id === p.id}>
+                      {p.full_name || p.email}
+                    </option>
+                  ))}
+                </select>
+                <AstroButton type="submit" variant="outline" size="sm">Link</AstroButton>
+              </form>
+
+              <form method="post" onsubmit={`return confirm('Delete ${m.full_name?.replace(/'/g, "\\'")}? Their attendance history will also be removed.')`}>
+                <input type="hidden" name="_action" value="delete" />
+                <input type="hidden" name="id" value={m.id} />
+                <AstroButton type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"></path></svg>
+                </AstroButton>
+              </form>
+            </div>
+          );
+        })}
+        {(!roster || roster.length === 0) && (
+          <div class="p-12 text-center text-muted-foreground text-sm">No roster members yet.</div>
+        )}
+      </div>
+    </AstroCard>
+  </main>
+</Layout>

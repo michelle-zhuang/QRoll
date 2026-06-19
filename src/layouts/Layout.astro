@@ -35,9 +35,9 @@ if (user) {
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 	</head>
-	<body class="bg-slate-50 antialiased">
+	<body class="bg-background text-foreground antialiased min-h-screen">
 		<Navbar client:load user={user as any} role={role as any} currentPath={currentPath} />
-		<main class="pt-24">
+		<main>
 			<slot />
 		</main>
 	</body>
