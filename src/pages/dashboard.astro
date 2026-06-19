@@ -45,13 +45,25 @@ const events = eventsRes.data || [];
 const roster = rosterRes.data || [];
 const attendance = attendanceRes.data || [];
 
-// Map event_id -> ISO date (YYYY-MM-DD) using starts_at
+// Map event_id -> ISO date (YYYY-MM-DD) using starts_at in America/Los_Angeles timezone
 const dateByEvent: Record<string, string> = {};
 const datesSet = new Set<string>();
 events.forEach(e => {
-  const d = new Date(e.starts_at).toISOString().slice(0, 10);
-  dateByEvent[e.id] = d;
-  datesSet.add(d);
+  const d = new Date(e.starts_at);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(d);
+  const year = parts.find(p => p.type === 'year').value;
+  const month = parts.find(p => p.type === 'month').value;
+  const day = parts.find(p => p.type === 'day').value;
+  const localDateStr = `${year}-${month}-${day}`;
+
+  dateByEvent[e.id] = localDateStr;
+  datesSet.add(localDateStr);
 });
 const dates = [...datesSet].sort();
 
