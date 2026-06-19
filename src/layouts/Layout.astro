@@ -1,9 +1,29 @@
 ---
+import "../styles/global.css";
+import { Navbar } from "../components/ui/Navbar";
+import { createSupabaseClient } from "../lib/supabase";
+
 interface Props {
 	title?: string;
 }
 
 const { title = 'QRoll' } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+// Fetch user session and profile for role logic
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+const user = session?.user;
+
+let role = "guest";
+if (user) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  role = profile?.role || "attendee";
+}
 ---
 <!doctype html>
 <html lang="en">
@@ -15,12 +35,15 @@ const { title = 'QRoll' } = Astro.props;
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 	</head>
-	<body>
-		<slot />
+	<body class="bg-slate-50 antialiased">
+		<Navbar client:load user={user as any} role={role as any} currentPath={currentPath} />
+		<main class="pt-24">
+			<slot />
+		</main>
 	</body>
 </html>
 
-<style>
+<style is:global>
 	html,
 	body {
 		margin: 0;
