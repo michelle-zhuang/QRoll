@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **QRoll** (272 symbols, 322 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **QRoll** (566 symbols, 785 relationships, 16 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -41,3 +41,8 @@ This project is indexed by GitNexus as **QRoll** (272 symbols, 322 relationships
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## Project Notes
+- The Supabase database is a remote instance (configured via `.env`), not run locally via docker/cli.
+- For git operations, use the `michelle` remote (which is configured to push to `michelle-zhuang/QRoll.git`).
+
