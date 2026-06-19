@@ -21,6 +21,9 @@ type EventRow = {
   is_historical: boolean;
   description: string | null;
   qr_token: string | null;
+  series_id?: string | null;
+  occurrence_index?: number | null;
+  cancelled_at?: string | null;
 };
 
 interface Props {
@@ -49,8 +52,16 @@ export function EventsTable({ events }: Props) {
           const ev = row.original;
           return (
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-medium truncate">{ev.title}</span>
+              <span className={`font-medium truncate ${ev.cancelled_at ? "line-through text-muted-foreground" : ""}`}>
+                {ev.title}
+              </span>
               {ev.is_historical && <Badge variant="outline">Historical</Badge>}
+              {ev.series_id && (
+                <Badge variant="secondary" title={`Occurrence #${(ev.occurrence_index ?? 0) + 1}`}>
+                  Recurring
+                </Badge>
+              )}
+              {ev.cancelled_at && <Badge variant="destructive">Cancelled</Badge>}
             </div>
           );
         },
@@ -104,16 +115,27 @@ export function EventsTable({ events }: Props) {
       {
         id: "actions",
         header: () => null,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <a href={`/admin/events/${row.original.id}`}>
-              <Button variant="outline" size="sm">
-                Manage
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
-            </a>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const ev = row.original;
+          return (
+            <div className="flex justify-end gap-2">
+              {ev.series_id && (
+                <form method="post" action={`/api/events/${ev.id}/cancel`}>
+                  {ev.cancelled_at && <input type="hidden" name="undo" value="1" />}
+                  <Button type="submit" variant="outline" size="sm">
+                    {ev.cancelled_at ? "Restore" : "Cancel"}
+                  </Button>
+                </form>
+              )}
+              <a href={`/admin/events/${ev.id}`}>
+                <Button variant="outline" size="sm">
+                  Manage
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </a>
+            </div>
+          );
+        },
         enableSorting: false,
       },
     ],
