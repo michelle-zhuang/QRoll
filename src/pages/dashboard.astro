@@ -57,9 +57,9 @@ events.forEach(e => {
     day: '2-digit',
   });
   const parts = formatter.formatToParts(d);
-  const year = parts.find(p => p.type === 'year').value;
-  const month = parts.find(p => p.type === 'month').value;
-  const day = parts.find(p => p.type === 'day').value;
+  const year = parts.find(p => p.type === 'year')!.value;
+  const month = parts.find(p => p.type === 'month')!.value;
+  const day = parts.find(p => p.type === 'day')!.value;
   const localDateStr = `${year}-${month}-${day}`;
 
   dateByEvent[e.id] = localDateStr;
