@@ -248,7 +248,7 @@ const hasData = roster.length > 0 && events.length > 0;
               </div>
               <ul class="space-y-2">
                 {leastAttendees.map(a => (
-                  <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40">
+                  <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
                     <div class="min-w-0">
                       <p class="text-sm font-medium truncate">{a.name}</p>
                       <p class="text-xs text-muted-foreground">{a.absent} missed · {a.attendanceRate}% rate</p>
@@ -269,7 +269,7 @@ const hasData = roster.length > 0 && events.length > 0;
               ) : (
                 <ul class="space-y-2">
                   {mostLate.map(a => (
-                    <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40">
+                    <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
                       <div class="min-w-0">
                         <p class="text-sm font-medium truncate">{a.name}</p>
                         <p class="text-xs text-muted-foreground">{a.present} present · {a.absent} absent</p>

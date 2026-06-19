@@ -25,10 +25,14 @@ export function EmailAuthForm({ endpoint }: Props) {
     defaultValues: { email: "", password: "" },
   });
   const [pending, setPending] = React.useState<"signin" | "signup" | null>(null);
+  const [isShaking, setIsShaking] = React.useState(false);
 
   const submit = async (type: "signin" | "signup") => {
     const valid = await form.trigger();
-    if (!valid) return;
+    if (!valid) {
+      setIsShaking(true);
+      return;
+    }
     const values = form.getValues();
     setPending(type);
 
@@ -57,7 +61,7 @@ export function EmailAuthForm({ endpoint }: Props) {
   };
 
   return (
-    <form className="space-y-4" onSubmit={e => e.preventDefault()}>
+    <form className={`space-y-4 ${isShaking ? "animate-shake" : ""}`} onAnimationEnd={() => setIsShaking(false)} onSubmit={e => e.preventDefault()}>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
