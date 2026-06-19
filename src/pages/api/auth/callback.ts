@@ -3,9 +3,11 @@ import { createSupabaseClient } from '../../../lib/supabase';
 
 export const GET: APIRoute = async ({ url, cookies, redirect }) => {
   const code = url.searchParams.get('code');
+  const next = url.searchParams.get('next') || '/dashboard';
+  
   if (code) {
     const supabase = createSupabaseClient(cookies);
     await supabase.auth.exchangeCodeForSession(code);
   }
-  return redirect('/dashboard');
+  return redirect(next);
 };
