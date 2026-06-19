@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { motion } from "framer-motion";
 import {
   ChartContainer,
   ChartTooltip,
@@ -28,7 +29,13 @@ export function PerEventStackedBars({ data }: { data: PerEventDatum[] }) {
   }));
 
   return (
-    <ChartContainer config={chartConfig} className="h-[320px] w-full aspect-auto">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full"
+    >
+      <ChartContainer config={chartConfig} className="h-[320px] w-full aspect-auto">
       <BarChart data={formatted} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -46,6 +53,7 @@ export function PerEventStackedBars({ data }: { data: PerEventDatum[] }) {
         <Bar dataKey="absent" stackId="a" fill="var(--color-absent)" radius={[6, 6, 0, 0]} />
       </BarChart>
     </ChartContainer>
+    </motion.div>
   );
 }
 
@@ -62,26 +70,33 @@ function truncateName(name: string, max = 18) {
 
 export function TopAttendeesChart({ data }: { data: AttendeeBar[] }) {
   return (
-    <ChartContainer config={chartConfig} className="h-[420px] w-full aspect-auto">
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 20, left: 0, bottom: 0 }}>
-        <CartesianGrid horizontal={false} />
-        <XAxis type="number" tickLine={false} axisLine={false} />
-        <YAxis
-          type="category"
-          dataKey="name"
-          tickLine={false}
-          axisLine={false}
-          width={120}
-          tick={{ fontSize: 11 }}
-          interval={0}
-          tickFormatter={(v: string) => truncateName(v)}
-        />
-        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-        <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="present" stackId="a" fill="var(--color-present)" />
-        <Bar dataKey="late" stackId="a" fill="var(--color-late)" />
-        <Bar dataKey="absent" stackId="a" fill="var(--color-absent)" radius={[0, 4, 4, 0]} />
-      </BarChart>
-    </ChartContainer>
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full"
+    >
+      <ChartContainer config={chartConfig} className="h-[420px] w-full aspect-auto">
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 20, left: 0, bottom: 0 }}>
+          <CartesianGrid horizontal={false} />
+          <XAxis type="number" tickLine={false} axisLine={false} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            width={120}
+            tick={{ fontSize: 11 }}
+            interval={0}
+            tickFormatter={(v: string) => truncateName(v)}
+          />
+          <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+          <ChartLegend content={<ChartLegendContent />} />
+          <Bar dataKey="present" stackId="a" fill="var(--color-present)" />
+          <Bar dataKey="late" stackId="a" fill="var(--color-late)" />
+          <Bar dataKey="absent" stackId="a" fill="var(--color-absent)" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ChartContainer>
+    </motion.div>
   );
 }

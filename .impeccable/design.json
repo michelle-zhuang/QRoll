@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-19T20:19:30Z",
+  "title": "Design System: QRoll",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Eggplant Ink",
+        "canonical": "oklch(0.22 0.03 290)",
+        "tonalRamp": [
+          "oklch(0.12 0.03 290)",
+          "oklch(0.18 0.03 290)",
+          "oklch(0.22 0.03 290)",
+          "oklch(0.35 0.03 290)",
+          "oklch(0.50 0.03 290)",
+          "oklch(0.70 0.02 290)",
+          "oklch(0.85 0.01 290)",
+          "oklch(0.95 0.005 290)"
+        ]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Fresh Mint",
+        "canonical": "oklch(0.93 0.06 145)",
+        "tonalRamp": [
+          "oklch(0.45 0.06 145)",
+          "oklch(0.55 0.06 145)",
+          "oklch(0.68 0.06 145)",
+          "oklch(0.78 0.06 145)",
+          "oklch(0.85 0.06 145)",
+          "oklch(0.90 0.06 145)",
+          "oklch(0.93 0.06 145)",
+          "oklch(0.97 0.03 145)"
+        ]
+      },
+      "accent": {
+        "role": "accent",
+        "displayName": "Soft Lavender",
+        "canonical": "oklch(0.83 0.10 310)",
+        "tonalRamp": [
+          "oklch(0.35 0.10 310)",
+          "oklch(0.48 0.10 310)",
+          "oklch(0.62 0.10 310)",
+          "oklch(0.72 0.10 310)",
+          "oklch(0.78 0.10 310)",
+          "oklch(0.83 0.10 310)",
+          "oklch(0.88 0.08 310)",
+          "oklch(0.95 0.03 310)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Warm Milk",
+        "canonical": "oklch(0.99 0.005 80)",
+        "tonalRamp": [
+          "oklch(0.50 0.005 80)",
+          "oklch(0.65 0.005 80)",
+          "oklch(0.80 0.005 80)",
+          "oklch(0.90 0.005 80)",
+          "oklch(0.94 0.005 80)",
+          "oklch(0.97 0.005 80)",
+          "oklch(0.99 0.005 80)",
+          "oklch(0.995 0.002 80)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Scanning verification confirmation screens." },
+      "headline": { "displayName": "Headline", "purpose": "Primary section titles and card headers." },
+      "title": { "displayName": "Title", "purpose": "Attendees list and modal titles." },
+      "body": { "displayName": "Body", "purpose": "General interface text and description logs." },
+      "label": { "displayName": "Label", "purpose": "Badges and technical tables." }
+    },
+    "shadows": [
+      {
+        "name": "Halo Glow",
+        "value": "0 8px 30px rgba(47,39,56,0.06), 0 2px 8px rgba(228,193,249,0.08)",
+        "purpose": "Soft, tinted shadow for cards and active inputs."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Transitions for hover effects and modal entrances."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Standard call-to-action button for submissions.",
+      "html": "<button class=\"ds-btn-primary\">Submit attendance</button>",
+      "css": ".ds-btn-primary { background: #2F2738; color: #FFFDF9; border: none; border-radius: 12px; padding: 12px 24px; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease; } .ds-btn-primary:hover { background-color: oklch(0.18 0.03 290); } .ds-btn-primary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary or cancellation actions.",
+      "html": "<button class=\"ds-btn-outline\">Cancel</button>",
+      "css": ".ds-btn-outline { background: transparent; color: #2F2738; border: 1.5px solid #ECE6F2; border-radius: 12px; padding: 12px 24px; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease; } .ds-btn-outline:hover { background-color: #F5EFFA; border-color: #2F2738; }"
+    },
+    {
+      "name": "Live Badge",
+      "kind": "chip",
+      "refersTo": "badge-live",
+      "description": "Indicates an active state or live check-in.",
+      "html": "<span class=\"ds-badge ds-badge-live\"><span class=\"ds-dot-live\"></span>Check-in is live</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; } .ds-badge-live { background-color: #D0F4DE; color: #2F2738; } .ds-dot-live { width: 6px; height: 6px; border-radius: 50%; background-color: #10B981; animation: ds-pulse 1.5s infinite; } @keyframes ds-pulse { 0% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.5; } }"
+    },
+    {
+      "name": "Container Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Standard card wrapper for event details.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Event Title</h3><p class=\"ds-card-desc\">Description of the event goes here.</p></div>",
+      "css": ".ds-card { background: #FFFFFF; border-radius: 12px; padding: 24px; border: 1px solid #ECE6F2; box-shadow: 0 8px 30px rgba(47,39,56,0.06), 0 2px 8px rgba(228,193,249,0.08); font-family: system-ui, -apple-system, sans-serif; } .ds-card-title { margin: 0 0 8px 0; color: #2F2738; font-size: 18px; font-weight: 600; } .ds-card-desc { margin: 0; color: #6B6377; font-size: 14px; line-height: 1.5; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Active Canvas",
+    "overview": "The Active Canvas represents vibrant, functional pastel blocks placed upon a warm milk canvas. The design expresses the structure, rhythm, and active motion of event organizing (specifically matching a dance studio/active movement vibe) while maintaining clean layout boundaries.",
+    "keyCharacteristics": [
+      "Playful Contrast: Bold dark ink paired with pastel mint and lavender accent blocks.",
+      "Pill-like Shapes: Generous corner rounding (12px) making the UI feel friendly and touch-friendly.",
+      "Rhythmic Density: Well-spaced tables and controls designed to be readable on the move."
+    ],
+    "rules": [
+      {
+        "name": "The Accent Rarity Rule",
+        "body": "Primary Eggplant Ink and Warm Milk carry 90% of the screen weight. Fresh Mint and Soft Lavender must occupy <= 10% of any view, serving purely to draw focus to action points and badges.",
+        "section": "colors"
+      },
+      {
+        "name": "The Structural Shadow Rule",
+        "body": "Shadows must never be stark black or grey. They are tinted toward the eggplant/lavender background scale, ensuring a cohesive and clean glow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use Fresh Mint (#D0F4DE) exclusively for positive states (checked in, live session) and Soft Lavender (#E4C1F9) for neutral categories.",
+      "Do ensure body text maintains a contrast ratio of >= 4.5:1 against its background.",
+      "Do apply generous padding (24px) to cards to preserve 'The Active Canvas' airy aesthetic."
+    ],
+    "donts": [
+      "Don't use sterile, thin spreadsheet borders (e.g. border-gray-200); always use the brand's Pale Lilac border (#ECE6F2).",
+      "Don't use sharp corners; every interactive component must have at least an 8px radius.",
+      "Don't apply gradients to text headers; use solid Eggplant Ink (#2F2738) for display text.",
+      "Don't animate image dimensions on hover. Animate background scaling or card shadows instead."
+    ]
+  }
+}
