@@ -201,8 +201,33 @@ async function run() {
       processedEventIds.add(event.id);
       
       // 3. Calculate status (present or late)
-      const lateTime = new Date(event.late_after_at);
-      const status = timestamp > lateTime ? 'late' : 'present';
+      const checkinDate = new Date(timestamp);
+      
+      // Get local hour and minute in America/Los_Angeles timezone
+      const timeFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: TZ,
+        hour12: false,
+        hour: 'numeric',
+        minute: 'numeric'
+      });
+      const timeParts = timeFormatter.formatToParts(checkinDate);
+      const hours = parseInt(timeParts.find(p => p.type === 'hour').value, 10);
+      const minutes = parseInt(timeParts.find(p => p.type === 'minute').value, 10);
+      
+      const weekdayName = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'long' }).format(checkinDate);
+      
+      let status = 'present';
+      if (weekdayName === 'Thursday') {
+        // Thursday start: 3:30pm (15:30). Late is 10+ minutes after start (15:40)
+        if (hours > 15 || (hours === 15 && minutes >= 40)) {
+          status = 'late';
+        }
+      } else if (weekdayName === 'Saturday') {
+        // Saturday start: 7:00pm (19:00). Late is 10+ minutes after start (19:10)
+        if (hours > 19 || (hours === 19 && minutes >= 10)) {
+          status = 'late';
+        }
+      }
       
       // 4. Upsert Attendance Record
       const note = row['Notes'] || row['Reason'] || row['Note'] || null;

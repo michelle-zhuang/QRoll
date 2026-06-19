@@ -185,7 +185,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
         let present = 0;
         attendees.forEach(a => {
           const rec = a.records.find(r => r.date === d);
-          if (rec?.status === "present") present++;
+          if (rec?.status === "present" || rec?.status === "late") present++;
         });
         return { date: d, present };
       }),
