@@ -46,6 +46,10 @@
   --animate-blob-2: float-blob-2 12s ease-in-out infinite;
   --animate-blob-3: float-blob-3 8s ease-in-out infinite;
   --animate-slide-down: slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-float-slow-1: float-slow-1 12s ease-in-out infinite;
+  --animate-float-slow-2: float-slow-2 15s ease-in-out infinite;
+  --animate-sway-slow: sway-slow 18s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 4s ease-in-out infinite;
 
   @keyframes accordion-down {
     from {
@@ -95,6 +99,26 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  @keyframes float-slow-1 {
+    0%, 100% { transform: translate(193px, 135px) translateY(0px) rotate(0deg); }
+    50% { transform: translate(193px, 135px) translateY(-15px) rotate(1deg); }
+  }
+
+  @keyframes float-slow-2 {
+    0%, 100% { transform: translate(2509px, 752px) translateY(0px) rotate(0deg); }
+    50% { transform: translate(2509px, 752px) translateY(-20px) rotate(-1.5deg); }
+  }
+
+  @keyframes sway-slow {
+    0%, 100% { transform: translate(1969px, 5px) translateX(0px); }
+    50% { transform: translate(1969px, 5px) translateX(12px); }
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 }
 
