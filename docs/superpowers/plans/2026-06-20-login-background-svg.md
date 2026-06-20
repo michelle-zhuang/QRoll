@@ -27,10 +27,10 @@
 - Consumes: None
 - Produces: `PartyBackground` Astro component
 
-- [ ] **Step 1: Create the file**
+- [x] **Step 1: Create the file**
   Create the `src/components/PartyBackground.astro` file.
   
-- [ ] **Step 2: Add implementation**
+- [x] **Step 2: Add implementation**
   Add the SVG markup inline with animation classes applied to target groups. We'll identify:
   - Balloons: Add class `animate-float-slow-1` to the first balloon, `animate-float-slow-2` to the second balloon.
   - Clouds: Add class `animate-sway-slow` to the clouds.
@@ -105,7 +105,7 @@
   </div>
   ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/PartyBackground.astro
@@ -123,7 +123,7 @@ git commit -m "feat: add PartyBackground component"
 - Consumes: Tailwind classes in `PartyBackground.astro`
 - Produces: CSS animation classes (`animate-float-slow-1`, `animate-float-slow-2`, `animate-sway-slow`, `animate-pulse-slow`)
 
-- [ ] **Step 1: Edit global.css**
+- [x] **Step 1: Edit global.css**
   Append custom `@keyframes` definitions and their associated animation classes inside the `@theme` block or custom layers, along with a `@media (prefers-reduced-motion: reduce)` block to reset those properties.
 
   ```css
@@ -154,7 +154,7 @@ git commit -m "feat: add PartyBackground component"
   }
   ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/styles/global.css
@@ -172,7 +172,7 @@ git commit -m "style: define keyframe animations in global.css"
 - Consumes: `PartyBackground` Astro component
 - Produces: Updated login page UI
 
-- [ ] **Step 1: Modify login.astro**
+- [x] **Step 1: Modify login.astro**
   Edit `src/pages/login.astro` to remove the background blob divs, import and add `<PartyBackground />`, and update the `AstroCard` classes to be semi-transparent and use the custom halo shadow.
 
   ```astro
@@ -239,7 +239,7 @@ git commit -m "style: define keyframe animations in global.css"
   </Layout>
   ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/pages/login.astro
@@ -253,14 +253,14 @@ git commit -m "feat: integrate PartyBackground and redesign login card"
 **Files:**
 - None (Build and run checks)
 
-- [ ] **Step 1: Build the project**
+- [x] **Step 1: Build the project**
   Run: `npm run build`
   Expected: Successful production build with no type or bundler errors.
 
-- [ ] **Step 2: Run test suite**
+- [x] **Step 2: Run test suite**
   Run: `npm run test`
   Expected: All tests pass.
 
-- [ ] **Step 3: Detect changes using GitNexus**
+- [x] **Step 3: Detect changes using GitNexus**
   Run: `npx gitnexus detect-changes`
   Expected: Verification that modified symbols match our plan scope.
