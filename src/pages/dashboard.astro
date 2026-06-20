@@ -32,7 +32,6 @@ if (!profile) {
   if (!error) profile = newProfile;
 }
 
-const displayName = profile?.full_name || profile?.email || session.user.email;
 const isAdmin = profile?.role === 'admin';
 
 // Pull all events + roster + attendance
@@ -45,6 +44,9 @@ const [eventsRes, rosterRes, attendanceRes] = await Promise.all([
 const events = eventsRes.data || [];
 const roster = rosterRes.data || [];
 const attendance = attendanceRes.data || [];
+
+const linkedMember = roster.find(m => m.claimed_user_id === session.user.id);
+const displayName = linkedMember?.full_name || profile?.full_name || profile?.email || session.user.email;
 
 // Map event_id -> ISO date (YYYY-MM-DD) using starts_at in America/Los_Angeles timezone
 const dateByEvent: Record<string, string> = {};
