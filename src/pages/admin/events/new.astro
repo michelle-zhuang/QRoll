@@ -215,14 +215,27 @@ if (Astro.request.method === 'POST') {
           </div>
 
           <div id="geofence-panel" class="hidden space-y-4 mt-4 transition-all duration-200">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-2 border-b">
+              <div class="space-y-2 col-span-1 sm:col-span-2">
+                <Label htmlFor="geo_search">Search Location / Address</Label>
+                <div class="flex gap-2">
+                  <Input id="geo_search" name="geo_search" type="text" placeholder="e.g. Space Needle, Seattle" className="flex-1" />
+                  <AstroButton type="button" id="btn-search-address" className="h-10 px-4 rounded-xl text-xs font-semibold">
+                    Search
+                  </AstroButton>
+                </div>
+                <span id="search-status" class="text-xs text-muted-foreground block min-h-[1rem]"></span>
+              </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div class="space-y-2">
                 <Label htmlFor="latitude">Latitude</Label>
-                <Input id="latitude" name="latitude" type="number" step="any" placeholder="e.g. 47.6205" readOnly className="bg-muted/50" />
+                <Input id="latitude" name="latitude" type="number" step="any" placeholder="e.g. 47.5492" className="bg-background" />
               </div>
               <div class="space-y-2">
                 <Label htmlFor="longitude">Longitude</Label>
-                <Input id="longitude" name="longitude" type="number" step="any" placeholder="e.g. -122.3493" readOnly className="bg-muted/50" />
+                <Input id="longitude" name="longitude" type="number" step="any" placeholder="e.g. -122.3218" className="bg-background" />
               </div>
               <div class="space-y-2">
                 <Label htmlFor="geofence_radius_meters">Radius (meters)</Label>
@@ -240,7 +253,7 @@ if (Astro.request.method === 'POST') {
             <div class="relative w-full h-[300px] rounded-2xl overflow-hidden border border-border" id="map-container">
               <div id="geofence-map" class="w-full h-full bg-muted/40 z-0"></div>
             </div>
-            <p class="text-xs text-muted-foreground italic">Click anywhere on the map to change the geofence center location.</p>
+            <p class="text-xs text-muted-foreground italic">Click anywhere on the map or type coordinates/address above to change the geofence center.</p>
           </div>
         </div>
 
@@ -258,13 +271,17 @@ if (Astro.request.method === 'POST') {
             const useCurrentBtn = document.getElementById('btn-use-current');
             const geoStatus = document.getElementById('geo-status');
 
+            const searchInput = document.getElementById('geo_search');
+            const searchBtn = document.getElementById('btn-search-address');
+            const searchStatus = document.getElementById('search-status');
+
             let map = null;
             let marker = null;
             let circle = null;
 
-            // Default coordinates: Space Needle (Seattle)
-            let defaultLat = 47.6205;
-            let defaultLon = -122.3493;
+            // Default coordinates: Space Needle or user specified
+            let defaultLat = 47.5492;
+            let defaultLon = -122.3218;
             let defaultRadius = parseInt(radiusInput.value, 10) || 100;
 
             function setToggleState(enabled) {
@@ -361,6 +378,22 @@ if (Astro.request.method === 'POST') {
               });
             }
 
+            // Reposition map and marker when lat/lon inputs are typed manually
+            function handleCoordinateInput() {
+              const lat = parseFloat(latInput.value);
+              const lon = parseFloat(lonInput.value);
+              if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                if (map && marker && circle) {
+                  marker.setLatLng([lat, lon]);
+                  circle.setLatLng([lat, lon]);
+                  map.setView([lat, lon], map.getZoom());
+                }
+              }
+            }
+
+            latInput.addEventListener('input', handleCoordinateInput);
+            lonInput.addEventListener('input', handleCoordinateInput);
+
             // Geolocation handler
             useCurrentBtn.addEventListener('click', () => {
               geoStatus.textContent = 'Locating...';
@@ -384,6 +417,34 @@ if (Astro.request.method === 'POST') {
                 );
               } else {
                 geoStatus.textContent = 'Geolocation not supported';
+              }
+            });
+
+            // Address Search handler using OSM Nominatim API
+            searchBtn.addEventListener('click', async (e) => {
+              e.preventDefault();
+              const query = searchInput.value.trim();
+              if (!query) return;
+
+              searchStatus.textContent = 'Searching...';
+              try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                if (data && data.length > 0) {
+                  const lat = parseFloat(data[0].lat);
+                  const lon = parseFloat(data[0].lon);
+                  searchStatus.textContent = 'Found: ' + data[0].display_name;
+                  updateInputs(lat, lon);
+                  if (map) {
+                    map.setView([lat, lon], 16);
+                    marker.setLatLng([lat, lon]);
+                    circle.setLatLng([lat, lon]);
+                  }
+                } else {
+                  searchStatus.textContent = 'Location not found';
+                }
+              } catch (err) {
+                searchStatus.textContent = 'Search failed: ' + err.message;
               }
             });
           });
