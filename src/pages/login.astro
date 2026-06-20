@@ -4,6 +4,7 @@ import AstroButton from '../components/AstroButton.astro';
 import AstroCard from '../components/AstroCard.astro';
 import { EmailAuthForm } from '../components/EmailAuthForm';
 import { FcGoogle } from 'react-icons/fc';
+import PartyBackground from '../components/PartyBackground.astro';
 
 const next = Astro.url.searchParams.get('next') || '/dashboard';
 const signinUrl = `/api/auth/signin?next=${encodeURIComponent(next)}`;
@@ -11,11 +12,11 @@ const emailUrl = `/api/auth/email?next=${encodeURIComponent(next)}`;
 ---
 <Layout title="Login">
   <main class="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-4 relative overflow-hidden">
-    <div class="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#A9DEF9] opacity-50 rounded-full blur-[120px] pointer-events-none animate-blob-1"></div>
-    <div class="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[400px] h-[400px] bg-[#E4C1F9] opacity-50 rounded-full blur-[120px] pointer-events-none animate-blob-2"></div>
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-[#D0F4DE] opacity-40 rounded-full blur-[100px] pointer-events-none animate-blob-3"></div>
+    <!-- Full screen background SVG -->
+    <PartyBackground />
 
-    <AstroCard className="w-full max-w-md relative z-10 p-8">
+    <!-- Glassmorphic Login Card -->
+    <AstroCard className="w-full max-w-md relative z-10 p-8 bg-white/80 backdrop-blur-md border border-[#ECE6F2]/80 shadow-[0_8px_30px_rgba(47,39,56,0.06),0_2px_8px_rgba(228,193,249,0.08)]">
       <div class="flex flex-col items-center mb-8">
         <div class="h-16 w-16 rounded-2xl bg-card border flex items-center justify-center mb-6">
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-foreground" aria-hidden="true">
