@@ -94,6 +94,8 @@ class MockQueryBuilder {
   isSingle = false;
   isMaybeSingle = false;
   limitCount: number | null = null;
+  orderField: string | null = null;
+  orderAscending = true;
 
   constructor(table: string) {
     this.table = table;
@@ -172,6 +174,12 @@ class MockQueryBuilder {
     return this;
   }
 
+  order(field: string, options?: { ascending?: boolean }) {
+    this.orderField = field;
+    this.orderAscending = options?.ascending !== false;
+    return this;
+  }
+
   then(onfulfilled?: (value: any) => any, onrejected?: (reason: any) => any) {
     return Promise.resolve(this.execute()).then(onfulfilled, onrejected);
   }
@@ -199,6 +207,21 @@ class MockQueryBuilder {
         } else if (filter.op === 'lt') {
           result = result.filter(item => item[filter.field] < filter.value);
         }
+      }
+      if (this.orderField) {
+        const field = this.orderField;
+        const asc = this.orderAscending;
+        result.sort((a, b) => {
+          const valA = a[field];
+          const valB = b[field];
+          if (valA === valB) return 0;
+          if (valA === null || valA === undefined) return 1;
+          if (valB === null || valB === undefined) return -1;
+          if (typeof valA === 'string' && typeof valB === 'string') {
+            return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          }
+          return asc ? (valA < valB ? -1 : 1) : (valA > valB ? -1 : 1);
+        });
       }
       if (this.limitCount !== null) result = result.slice(0, this.limitCount);
       if (this.isSingle) {
