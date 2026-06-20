@@ -29,8 +29,17 @@ if (Astro.request.method === 'POST') {
   const late_after_at = formData.get('late_after_at');
   const checkin_closes_at = formData.get('checkin_closes_at');
 
+  const geofenceEnabled = formData.get('geofence_enabled') === 'true';
+  const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : null;
+  const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : null;
+  const radius = formData.get('geofence_radius_meters') ? parseInt(formData.get('geofence_radius_meters') as string, 10) : 100;
+
   const { error } = await supabase.from('events').update({
-    title, description, starts_at, checkin_opens_at, late_after_at, checkin_closes_at
+    title, description, starts_at, checkin_opens_at, late_after_at, checkin_closes_at,
+    geofence_enabled: geofenceEnabled,
+    latitude: geofenceEnabled ? latitude : null,
+    longitude: geofenceEnabled ? longitude : null,
+    geofence_radius_meters: geofenceEnabled ? radius : 100,
   }).eq('id', id);
 
   if (!error) return Astro.redirect(`/admin/events/${id}?toast=` + encodeURIComponent('Event updated') + '&toastType=success');
@@ -105,6 +114,209 @@ const closesAt = formatDateTime(event.checkin_closes_at);
             <DateTimePicker name="checkin_closes_at" defaultValue={closesAt} required client:load />
           </div>
         </div>
+
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+        <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+        <div class="space-y-4 pt-6 border-t">
+          <div class="flex items-center justify-between">
+            <div class="space-y-0.5">
+              <Label htmlFor="geofence_toggle" class="text-base font-semibold">Geofencing Verification</Label>
+              <p class="text-xs text-muted-foreground">Restrict check-ins to a physical radius around the event venue.</p>
+            </div>
+            <button
+              type="button"
+              id="geofence-toggle"
+              role="switch"
+              aria-checked={event.geofence_enabled ? 'true' : 'false'}
+              class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-muted-foreground/30"
+            >
+              <span class="sr-only">Enable geofencing</span>
+              <span id="geofence-toggle-handle" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+            </button>
+            <input type="hidden" name="geofence_enabled" id="geofence_enabled_val" value={event.geofence_enabled ? 'true' : 'false'} />
+          </div>
+
+          <div id="geofence-panel" class="hidden space-y-4 mt-4 transition-all duration-200">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <Label htmlFor="latitude">Latitude</Label>
+                <Input id="latitude" name="latitude" type="number" step="any" placeholder="e.g. 47.6205" readOnly class="bg-muted/50" value={event.latitude || ''} />
+              </div>
+              <div class="space-y-2">
+                <Label htmlFor="longitude">Longitude</Label>
+                <Input id="longitude" name="longitude" type="number" step="any" placeholder="e.g. -122.3493" readOnly class="bg-muted/50" value={event.longitude || ''} />
+              </div>
+              <div class="space-y-2">
+                <Label htmlFor="geofence_radius_meters">Radius (meters)</Label>
+                <Input id="geofence_radius_meters" name="geofence_radius_meters" type="number" min="10" max="5000" defaultValue={event.geofence_radius_meters || 100} />
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <AstroButton type="button" id="btn-use-current" variant="outline" size="sm" className="h-9 text-xs rounded-full">
+                Pin to my current location
+              </AstroButton>
+              <span id="geo-status" class="text-xs text-muted-foreground"></span>
+            </div>
+
+            <div class="relative w-full h-[300px] rounded-2xl overflow-hidden border border-border" id="map-container">
+              <div id="geofence-map" class="w-full h-full bg-muted/40 z-0"></div>
+            </div>
+            <p class="text-xs text-muted-foreground italic">Click anywhere on the map to change the geofence center location.</p>
+          </div>
+        </div>
+
+        <script is:inline>
+          document.addEventListener('DOMContentLoaded', () => {
+            const toggle = document.getElementById('geofence-toggle');
+            const handle = document.getElementById('geofence-toggle-handle');
+            const hiddenVal = document.getElementById('geofence_enabled_val');
+            const panel = document.getElementById('geofence-panel');
+
+            const latInput = document.getElementById('latitude');
+            const lonInput = document.getElementById('longitude');
+            const radiusInput = document.getElementById('geofence_radius_meters');
+
+            const useCurrentBtn = document.getElementById('btn-use-current');
+            const geoStatus = document.getElementById('geo-status');
+
+            let map = null;
+            let marker = null;
+            let circle = null;
+
+            // Default coordinates: Space Needle (Seattle) or existing coordinates
+            let defaultLat = parseFloat(latInput.value) || 47.6205;
+            let defaultLon = parseFloat(lonInput.value) || -122.3493;
+            let defaultRadius = parseInt(radiusInput.value, 10) || 100;
+
+            function setToggleState(enabled) {
+              if (enabled) {
+                toggle.setAttribute('aria-checked', 'true');
+                toggle.classList.remove('bg-muted-foreground/30');
+                toggle.classList.add('bg-primary');
+                handle.classList.remove('translate-x-0');
+                handle.classList.add('translate-x-5');
+                hiddenVal.value = 'true';
+                panel.classList.remove('hidden');
+
+                // Initialize Leaflet Map if not already initialized
+                setTimeout(initMap, 50);
+              } else {
+                toggle.setAttribute('aria-checked', 'false');
+                toggle.classList.remove('bg-primary');
+                toggle.classList.add('bg-muted-foreground/30');
+                handle.classList.remove('translate-x-5');
+                handle.classList.add('translate-x-0');
+                hiddenVal.value = 'false';
+                panel.classList.add('hidden');
+              }
+            }
+
+            toggle.addEventListener('click', () => {
+              const enabled = toggle.getAttribute('aria-checked') === 'false';
+              setToggleState(enabled);
+            });
+
+            function updateInputs(lat, lon) {
+              latInput.value = lat.toFixed(6);
+              lonInput.value = lon.toFixed(6);
+            }
+
+            function initMap() {
+              if (map) {
+                map.invalidateSize();
+                return;
+              }
+
+              // Check if coordinates were empty
+              if (!latInput.value || !lonInput.value) {
+                updateInputs(defaultLat, defaultLon);
+              } else {
+                defaultLat = parseFloat(latInput.value);
+                defaultLon = parseFloat(lonInput.value);
+              }
+
+              map = L.map('geofence-map').setView([defaultLat, defaultLon], 15);
+
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors'
+              }).addTo(map);
+
+              // Use custom divIcon to avoid asset-loading issues in frameworks
+              const customIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div class="w-6 h-6 rounded-full bg-[#2F2738] border-2 border-white shadow flex items-center justify-center"><div class="w-2.5 h-2.5 rounded-full bg-[#E4C1F9] animate-pulse"></div></div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+              });
+
+              // Add marker
+              marker = L.marker([defaultLat, defaultLon], { draggable: true, icon: customIcon }).addTo(map);
+
+              // Add circle radius
+              circle = L.circle([defaultLat, defaultLon], {
+                color: '#E4C1F9',
+                fillColor: '#E4C1F9',
+                fillOpacity: 0.35,
+                radius: defaultRadius
+              }).addTo(map);
+
+              // Marker drag event
+              marker.on('drag', (e) => {
+                const position = marker.getLatLng();
+                updateInputs(position.lat, position.lng);
+                circle.setLatLng(position);
+              });
+
+              // Map click event
+              map.on('click', (e) => {
+                const position = e.latlng;
+                marker.setLatLng(position);
+                circle.setLatLng(position);
+                updateInputs(position.lat, position.lng);
+              });
+
+              // Radius change event
+              radiusInput.addEventListener('input', () => {
+                const r = parseInt(radiusInput.value, 10) || 100;
+                circle.setRadius(r);
+              });
+            }
+
+            // Geolocation handler
+            useCurrentBtn.addEventListener('click', () => {
+              geoStatus.textContent = 'Locating...';
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    geoStatus.textContent = 'Located!';
+                    updateInputs(lat, lon);
+                    if (map) {
+                      map.setView([lat, lon], 16);
+                      marker.setLatLng([lat, lon]);
+                      circle.setLatLng([lat, lon]);
+                    }
+                  },
+                  (error) => {
+                    geoStatus.textContent = 'Error: ' + error.message;
+                  },
+                  { enableHighAccuracy: true, timeout: 5000 }
+                );
+              } else {
+                geoStatus.textContent = 'Geolocation not supported';
+              }
+            });
+
+            // Initialize switch state
+            const initialEnabled = hiddenVal.value === 'true';
+            if (initialEnabled) {
+              setToggleState(true);
+            }
+          });
+        </script>
 
         <div class="flex justify-end gap-2 pt-2">
           <a href={`/admin/events/${id}`}>
