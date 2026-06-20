@@ -89,9 +89,13 @@ attendance.forEach(a => {
   });
 });
 
+const filteredRoster = isAdmin
+  ? roster
+  : roster.filter(m => m.claimed_user_id === session.user.id);
+
 const data: AttendanceData = {
   dates,
-  attendees: roster.map(m => ({
+  attendees: filteredRoster.map(m => ({
     id: m.id,
     name: m.full_name,
     records: recordsByMember[m.id] || [],
@@ -143,7 +147,7 @@ const perEventStats = dates.map(d => {
   return { date: d, present: p, late: l, absent: ab, total: p + l + ab };
 });
 
-const hasData = roster.length > 0 && events.length > 0;
+const hasData = filteredRoster.length > 0 && events.length > 0;
 ---
 <Layout title="Dashboard">
   <main class="max-w-7xl mx-auto p-6 md:p-8">
@@ -188,7 +192,7 @@ const hasData = roster.length > 0 && events.length > 0;
           </div>
           <div class="flex flex-col gap-1 md:border-r border-border md:px-6 last:border-r-0">
             <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Roster</span>
-            <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{roster.length}</span>
+            <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{filteredRoster.length}</span>
           </div>
           <div class="flex flex-col gap-1 md:border-r border-border md:px-6 last:border-r-0">
             <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">On-time rate</span>
@@ -229,18 +233,20 @@ const hasData = roster.length > 0 && events.length > 0;
         </AstroCard>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <AstroCard className="p-6">
-            <div class="flex items-center justify-between mb-5">
-              <div>
-                <h2 class="text-lg font-semibold tracking-tight">Top attendees</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
+          {isAdmin && (
+            <AstroCard className="p-6">
+              <div class="flex items-center justify-between mb-5">
+                <div>
+                  <h2 class="text-lg font-semibold tracking-tight">Top attendees</h2>
+                  <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
+                </div>
+                <AstroBadge variant="secondary">{roster.length} total</AstroBadge>
               </div>
-              <AstroBadge variant="secondary">{roster.length} total</AstroBadge>
-            </div>
-            <TopAttendeesChart data={topAttendees.map(a => ({ name: a.name, present: a.present, late: a.late, absent: a.absent }))} client:load />
-          </AstroCard>
+              <TopAttendeesChart data={topAttendees.map(a => ({ name: a.name, present: a.present, late: a.late, absent: a.absent }))} client:load />
+            </AstroCard>
+          )}
 
-          <AstroCard className="p-6">
+          <AstroCard className={isAdmin ? "p-6" : "p-6 lg:col-span-2"}>
             <div class="mb-5">
               <h2 class="text-lg font-semibold tracking-tight">Attendance per event</h2>
               <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
@@ -250,49 +256,51 @@ const hasData = roster.length > 0 && events.length > 0;
         </div>
 
         <!-- Roster Insights Panel -->
-        <AstroCard className="p-6 mb-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
-            <div class="border-b md:border-b-0 md:border-r border-border pb-6 md:pb-0 md:pr-8">
-              <div class="mb-5">
-                <h2 class="text-lg font-semibold tracking-tight">Least active</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Lowest attendance count</p>
-              </div>
-              <ul class="space-y-2">
-                {leastAttendees.map(a => (
-                  <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
-                    <div class="min-w-0">
-                      <p class="text-sm font-medium truncate">{a.name}</p>
-                      <p class="text-xs text-muted-foreground">{a.absent} missed · {a.attendanceRate}% rate</p>
-                    </div>
-                    <AstroBadge variant="outline">{a.present + a.late}/{a.total}</AstroBadge>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div class="pt-6 md:pt-0 md:pl-8">
-              <div class="mb-5">
-                <h2 class="text-lg font-semibold tracking-tight">Most late arrivals</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Total late check-ins</p>
-              </div>
-              {mostLate.length === 0 ? (
-                <p class="text-sm text-muted-foreground py-8 text-center">No late check-ins recorded.</p>
-              ) : (
+        {isAdmin && (
+          <AstroCard className="p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
+              <div class="border-b md:border-b-0 md:border-r border-border pb-6 md:pb-0 md:pr-8">
+                <div class="mb-5">
+                  <h2 class="text-lg font-semibold tracking-tight">Least active</h2>
+                  <p class="text-xs text-muted-foreground mt-0.5">Lowest attendance count</p>
+                </div>
                 <ul class="space-y-2">
-                  {mostLate.map(a => (
+                  {leastAttendees.map(a => (
                     <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
                       <div class="min-w-0">
                         <p class="text-sm font-medium truncate">{a.name}</p>
-                        <p class="text-xs text-muted-foreground">{a.present} present · {a.absent} absent</p>
+                        <p class="text-xs text-muted-foreground">{a.absent} missed · {a.attendanceRate}% rate</p>
                       </div>
-                      <AstroBadge variant="warning">{a.late} late</AstroBadge>
+                      <AstroBadge variant="outline">{a.present + a.late}/{a.total}</AstroBadge>
                     </li>
                   ))}
                 </ul>
-              )}
+              </div>
+
+              <div class="pt-6 md:pt-0 md:pl-8">
+                <div class="mb-5">
+                  <h2 class="text-lg font-semibold tracking-tight">Most late arrivals</h2>
+                  <p class="text-xs text-muted-foreground mt-0.5">Total late check-ins</p>
+                </div>
+                {mostLate.length === 0 ? (
+                  <p class="text-sm text-muted-foreground py-8 text-center">No late check-ins recorded.</p>
+                ) : (
+                  <ul class="space-y-2">
+                    {mostLate.map(a => (
+                      <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
+                        <div class="min-w-0">
+                          <p class="text-sm font-medium truncate">{a.name}</p>
+                          <p class="text-xs text-muted-foreground">{a.present} present · {a.absent} absent</p>
+                        </div>
+                        <AstroBadge variant="warning">{a.late} late</AstroBadge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          </div>
-        </AstroCard>
+          </AstroCard>
+        )}
       </>
     )}
   </main>
