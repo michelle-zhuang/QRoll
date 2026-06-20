@@ -5,6 +5,7 @@ import QRCode from '../../../../components/QRCode';
 import AstroCard from '../../../../components/AstroCard.astro';
 import AstroButton from '../../../../components/AstroButton.astro';
 import AstroBadge from '../../../../components/AstroBadge.astro';
+import { formatPacificTime, formatPacificDateTime } from '../../../../lib/timeLogic';
 import {
   Table,
   TableBody,
@@ -96,19 +97,19 @@ const lateMinutesFor = (checkedAt: string) => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-8">
           <div class="space-y-1">
             <p class="text-xs font-medium text-muted-foreground">Scheduled for</p>
-            <p class="text-sm font-medium">{new Date(event.starts_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+            <p class="text-sm font-medium">{formatPacificDateTime(event.starts_at)}</p>
           </div>
           <div class="space-y-1">
             <p class="text-xs font-medium text-muted-foreground">Check-in opens</p>
-            <p class="text-sm font-medium">{new Date(event.checkin_opens_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p class="text-sm font-medium">{formatPacificTime(event.checkin_opens_at)}</p>
           </div>
           <div class="space-y-1">
             <p class="text-xs font-medium text-muted-foreground">Late threshold</p>
-            <p class="text-sm font-medium">{new Date(event.late_after_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p class="text-sm font-medium">{formatPacificTime(event.late_after_at)}</p>
           </div>
           <div class="space-y-1">
             <p class="text-xs font-medium text-muted-foreground">Check-in closes</p>
-            <p class="text-sm font-medium">{new Date(event.checkin_closes_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p class="text-sm font-medium">{formatPacificTime(event.checkin_closes_at)}</p>
           </div>
         </div>
         {event.description && (
@@ -205,7 +206,7 @@ const lateMinutesFor = (checkedAt: string) => {
                     {record.note || '—'}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
-                    {new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {record.checked_in_at ? formatPacificTime(record.checked_in_at) : '—'}
                   </TableCell>
                 </TableRow>
               );

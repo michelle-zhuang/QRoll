@@ -23,10 +23,14 @@ interface PerEventDatum {
 }
 
 export function PerEventStackedBars({ data }: { data: PerEventDatum[] }) {
-  const formatted = data.map(d => ({
-    ...d,
-    label: new Date(d.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-  }));
+  const formatted = data.map(d => {
+    const [y, m, day] = d.date.split("-").map(Number);
+    const dateLocal = new Date(y, m - 1, day);
+    return {
+      ...d,
+      label: dateLocal.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    };
+  });
 
   return (
     <motion.div

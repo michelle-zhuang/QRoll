@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { createSupabaseClient } from '../../lib/supabase';
-import { determineCheckinStatus } from '../../lib/timeLogic';
+import { determineCheckinStatus, formatPacificTime, formatPacificDateTime } from '../../lib/timeLogic';
 import AstroButton from '../../components/AstroButton.astro';
 import AstroCard from '../../components/AstroCard.astro';
 import AstroBadge from '../../components/AstroBadge.astro';
@@ -141,7 +141,7 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
             <p class="text-base font-bold">No live check-in right now</p>
             {nextOccurrence.checkin_opens_at ? (
               <p class="text-sm text-muted-foreground mt-2">
-                Next session opens {new Date(nextOccurrence.checkin_opens_at).toLocaleString()}
+                Next session opens {formatPacificDateTime(nextOccurrence.checkin_opens_at)}
               </p>
             ) : (
               <p class="text-sm text-muted-foreground mt-2">No upcoming sessions are scheduled.</p>
@@ -158,7 +158,7 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
               <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
             <p class="text-base font-bold">You're checked in</p>
-            {existing && <p class="text-sm opacity-80 mt-2">Recorded at {new Date(existing.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
+            {existing && <p class="text-sm opacity-80 mt-2">Recorded at {formatPacificTime(existing.checked_in_at)}</p>}
             {message && <p class="mt-4 text-sm">{message}</p>}
           </div>
           <a href="/dashboard" class="block">
@@ -180,7 +180,7 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
           <div class="py-4 border-y flex items-center justify-center">
             {currentStatus?.status === 'not_open' && (
               <AstroBadge variant="warning">
-                Opens at {new Date(event!.checkin_opens_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Opens at {formatPacificTime(event!.checkin_opens_at)}
               </AstroBadge>
             )}
             {currentStatus?.status === 'closed' && (

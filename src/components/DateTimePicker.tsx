@@ -1,5 +1,6 @@
 import * as React from "react";
 import { format } from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { CalendarIcon, Clock } from "lucide-react";
 
 import { cn } from "src/lib/utils";
@@ -16,10 +17,14 @@ interface Props {
   id?: string;
 }
 
-function parseLocalDateTime(value: string | undefined): Date | undefined {
+const PACIFIC_TIMEZONE = "America/Los_Angeles";
+
+function parsePacificDateTime(value: string | undefined): Date | undefined {
   if (!value) return undefined;
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? undefined : d;
+  if (value.includes("T")) {
+    return fromZonedTime(value, PACIFIC_TIMEZONE);
+  }
+  return fromZonedTime(`${value}T00:00:00`, PACIFIC_TIMEZONE);
 }
 
 function formatTime12h(timeStr: string): string {
@@ -50,10 +55,10 @@ function parse24hTime(timeStr: string) {
 
 export function DateTimePicker({ name, defaultValue, required, className, id }: Props) {
 
-  const [date, setDate] = React.useState<Date | undefined>(() => parseLocalDateTime(defaultValue));
+  const [date, setDate] = React.useState<Date | undefined>(() => parsePacificDateTime(defaultValue));
   const [time, setTime] = React.useState<string>(() => {
-    const d = parseLocalDateTime(defaultValue);
-    return d ? format(d, "HH:mm") : "";
+    const d = parsePacificDateTime(defaultValue);
+    return d ? format(toZonedTime(d, PACIFIC_TIMEZONE), "HH:mm") : "";
   });
   const [open, setOpen] = React.useState(false);
   const [hasManuallyEdited, setHasManuallyEdited] = React.useState(() => defaultValue !== undefined);
@@ -95,10 +100,17 @@ export function DateTimePicker({ name, defaultValue, required, className, id }: 
 
   const combined = React.useMemo(() => {
     if (!date) return "";
-    const [h, m] = (time || "00:00").split(":").map(Number);
-    const d = new Date(date);
-    d.setHours(isNaN(h) ? 0 : h, isNaN(m) ? 0 : m, 0, 0);
-    return d.toISOString();
+    const [hStr, mStr] = (time || "00:00").split(":");
+    const h = isNaN(parseInt(hStr, 10)) ? 0 : parseInt(hStr, 10);
+    const m = isNaN(parseInt(mStr, 10)) ? 0 : parseInt(mStr, 10);
+    
+    const zoned = toZonedTime(date, PACIFIC_TIMEZONE);
+    const year = zoned.getFullYear();
+    const month = String(zoned.getMonth() + 1).padStart(2, "0");
+    const day = String(zoned.getDate()).padStart(2, "0");
+    
+    const isoString = `${year}-${month}-${day}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+    return fromZonedTime(isoString, PACIFIC_TIMEZONE).toISOString();
   }, [date, time]);
 
   // Sync relative date/time offsets from starts_at to other fields
@@ -135,7 +147,7 @@ export function DateTimePicker({ name, defaultValue, required, className, id }: 
       }
 
       setDate(targetDate);
-      setTime(format(targetDate, "HH:mm"));
+      setTime(format(toZonedTime(targetDate, PACIFIC_TIMEZONE), "HH:mm"));
     };
 
     window.addEventListener("qroll-starts-at-changed", handleStartsAtChange);
@@ -146,12 +158,22 @@ export function DateTimePicker({ name, defaultValue, required, className, id }: 
 
   const handleDateSelect = (d: Date | undefined) => {
     setHasManuallyEdited(true);
-    setDate(d);
+    if (d) {
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const day = d.getDate();
+      const isoDateOnly = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const ptDate = fromZonedTime(`${isoDateOnly}T00:00:00`, PACIFIC_TIMEZONE);
+      setDate(ptDate);
+    } else {
+      setDate(undefined);
+    }
   };
 
   const displayText = React.useMemo(() => {
     if (!date) return "Select date & time";
-    const dateFormatted = format(date, "PPP");
+    const zoned = toZonedTime(date, PACIFIC_TIMEZONE);
+    const dateFormatted = format(zoned, "PPP");
     const timeFormatted = time ? formatTime12h(time) : "12:00 AM";
     return `${dateFormatted} at ${timeFormatted}`;
   }, [date, time]);
@@ -178,9 +200,10 @@ export function DateTimePicker({ name, defaultValue, required, className, id }: 
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             mode="single"
-            selected={date}
+            selected={date ? toZonedTime(date, PACIFIC_TIMEZONE) : undefined}
             onSelect={handleDateSelect}
           />
+
           <div className="p-3 border-t flex items-center justify-between gap-4 bg-muted/10">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-muted-foreground shrink-0" />

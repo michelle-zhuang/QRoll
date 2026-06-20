@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { determineCheckinStatus } from './timeLogic';
+import { determineCheckinStatus, formatPacificDate, formatPacificTime, formatPacificDateTime, toPacificTime, fromPacificTime } from './timeLogic';
 
 describe('determineCheckinStatus', () => {
   const opens = new Date('2026-05-17T10:00:00Z');
@@ -34,3 +34,37 @@ describe('determineCheckinStatus', () => {
     expect(determineCheckinStatus({ now: closes, opens_at: opens, late_after: late, closes_at: closes }).status).toBe('late');
   });
 });
+
+describe('Pacific Time Helpers', () => {
+  const utcDateStr = '2026-06-22T06:57:00Z'; // June 21, 2026, 11:57 PM PDT
+
+  it('formats dates in Pacific Time correctly', () => {
+    expect(formatPacificDate(utcDateStr)).toBe('Jun 21, 2026');
+  });
+
+  it('formats times in Pacific Time correctly', () => {
+    // Note: depending on the exact implementation, PM/AM might be uppercase or lowercase, let's normalize or check
+    expect(formatPacificTime(utcDateStr).replace(/\s+/g, ' ')).toMatch(/11:57\s*PM/i);
+  });
+
+  it('formats datetime in Pacific Time correctly', () => {
+    expect(formatPacificDateTime(utcDateStr).replace(/\s+/g, ' ')).toMatch(/Jun 21, 2026,?\s+11:57\s*PM/i);
+  });
+
+  it('converts to Pacific Time zoned date correctly', () => {
+    const pt = toPacificTime(utcDateStr);
+    expect(pt.getFullYear()).toBe(2026);
+    expect(pt.getMonth()).toBe(5); // June is 5
+    expect(pt.getDate()).toBe(21);
+    expect(pt.getHours()).toBe(23);
+    expect(pt.getMinutes()).toBe(57);
+  });
+
+  it('converts from Pacific Time zoned date to UTC correctly', () => {
+    const ptDate = new Date(2026, 5, 21, 23, 57, 0); // local day representation
+    // Let's create from zoned representation of Jun 21, 23:57 PDT
+    const utc = fromPacificTime('2026-06-21T23:57:00');
+    expect(utc.toISOString()).toBe('2026-06-22T06:57:00.000Z');
+  });
+});
+

@@ -29,7 +29,7 @@ export function RecurrenceFields() {
   const [count, setCount] = React.useState<string>("8");
   const [until, setUntil] = React.useState<string>("");
   const [untilOpen, setUntilOpen] = React.useState(false);
-  const [tz, setTz] = React.useState<string>("UTC");
+  const [tz, setTz] = React.useState<string>("America/Los_Angeles");
 
   const untilDate = React.useMemo(() => {
     if (!until) return undefined;
@@ -50,11 +50,7 @@ export function RecurrenceFields() {
   };
 
   React.useEffect(() => {
-    try {
-      setTz(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
-    } catch {
-      setTz("UTC");
-    }
+    setTz("America/Los_Angeles");
   }, []);
 
   const showWeekdays = freq === "weekly" || freq === "biweekly";

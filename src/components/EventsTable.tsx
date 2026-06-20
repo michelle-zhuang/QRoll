@@ -13,6 +13,7 @@ import { ArrowUpDown, ExternalLink, Search } from "lucide-react";
 import { Input } from "src/components/ui/input";
 import { Button } from "src/components/ui/button";
 import { Badge } from "src/components/ui/badge";
+import { formatPacificDate, formatPacificTime } from "src/lib/timeLogic";
 
 type EventRow = {
   id: string;
@@ -78,14 +79,9 @@ export function EventsTable({ events }: Props) {
         ),
         cell: ({ getValue }) => {
           const v = getValue<string>();
-          const d = new Date(v);
           return (
             <span className="text-sm tabular-nums whitespace-nowrap">
-              {d.toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatPacificDate(v)}
             </span>
           );
         },
@@ -103,10 +99,7 @@ export function EventsTable({ events }: Props) {
           const v = getValue<string>();
           return (
             <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
-              {new Date(v).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatPacificTime(v)}
             </span>
           );
         },
@@ -237,7 +230,6 @@ export function EventsTable({ events }: Props) {
       <div className="md:hidden space-y-3">
         {table.getRowModel().rows.map(row => {
           const ev = row.original;
-          const d = new Date(ev.starts_at);
           return (
             <div
               key={row.id}
@@ -260,13 +252,9 @@ export function EventsTable({ events }: Props) {
                 )}
               </div>
               <div className="text-sm text-muted-foreground tabular-nums">
-                {d.toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {formatPacificDate(ev.starts_at)}
                 {" · "}
-                {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {formatPacificTime(ev.starts_at)}
               </div>
               <div className="flex flex-wrap gap-2">
                 {ev.series_id && (
