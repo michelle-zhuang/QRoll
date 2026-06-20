@@ -12,6 +12,7 @@ import {
   getAllUnclaimedMembers,
   linkRosterMember,
 } from '../../lib/onboarding';
+import { calculateDistance } from '../../lib/geofencing';
 
 const { token } = Astro.params;
 const supabase = createSupabaseClient(Astro.cookies);
@@ -137,6 +138,39 @@ if (event && Astro.request.method === 'POST' && !existing) {
   } else if (!rosterMember) {
     // The onboarding card is shown below — skip the generic error.
   } else {
+    const formData = await Astro.request.formData();
+    const clientLat = formData.get('client_latitude') ? parseFloat(formData.get('client_latitude') as string) : null;
+    const clientLon = formData.get('client_longitude') ? parseFloat(formData.get('client_longitude') as string) : null;
+    const clientAcc = formData.get('client_accuracy') ? parseFloat(formData.get('client_accuracy') as string) : null;
+
+    let verification_method: 'gps' | 'ip' | 'none' = 'none';
+    let verification_status: 'verified' | 'verified_ip' | 'out_of_bounds' | 'out_of_bounds_ip' | 'unverified' = 'unverified';
+    let calculated_distance_meters: number | null = null;
+    let ipLat: number | null = null;
+    let ipLon: number | null = null;
+
+    if (event.geofence_enabled) {
+      if (clientLat !== null && clientLon !== null && !isNaN(clientLat) && !isNaN(clientLon)) {
+        verification_method = 'gps';
+        calculated_distance_meters = calculateDistance(clientLat, clientLon, event.latitude, event.longitude);
+        const maxRadius = event.geofence_radius_meters + Math.min(clientAcc || 0, 30);
+        verification_status = calculated_distance_meters <= maxRadius ? 'verified' : 'out_of_bounds';
+      } else {
+        // Fallback to IP geolocation
+        const headerLat = Astro.request.headers.get('x-vercel-ip-latitude');
+        const headerLon = Astro.request.headers.get('x-vercel-ip-longitude');
+        if (headerLat && headerLon) {
+          ipLat = parseFloat(headerLat);
+          ipLon = parseFloat(headerLon);
+          if (!isNaN(ipLat) && !isNaN(ipLon)) {
+            verification_method = 'ip';
+            calculated_distance_meters = calculateDistance(ipLat, ipLon, event.latitude, event.longitude);
+            verification_status = calculated_distance_meters <= 20000 ? 'verified_ip' : 'out_of_bounds_ip';
+          }
+        }
+      }
+    }
+
     const ip = Astro.request.headers.get('x-forwarded-for') || Astro.clientAddress;
     const ua = Astro.request.headers.get('user-agent');
 
@@ -146,7 +180,15 @@ if (event && Astro.request.method === 'POST' && !existing) {
       roster_member_id: rosterMember.id,
       status: status,
       ip_address: ip,
-      user_agent: ua
+      user_agent: ua,
+      verification_method,
+      verification_status,
+      client_latitude: clientLat,
+      client_longitude: clientLon,
+      client_accuracy: clientAcc,
+      calculated_distance_meters,
+      ip_latitude: ipLat,
+      ip_longitude: ipLon
     });
 
     if (error) {
