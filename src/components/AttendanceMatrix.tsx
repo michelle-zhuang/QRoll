@@ -351,11 +351,11 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
   return (
     <>
       <div className="relative">
-        <div className="overflow-x-auto -mx-6 [scrollbar-width:thin]">
+        <div className="overflow-x-auto [scrollbar-width:thin]">
           <table className="border-separate border-spacing-y-1">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-card z-10 text-left pl-6 pr-3 pb-2 font-medium text-xs text-muted-foreground shadow-[2px_0_0_0_var(--color-card)]">
+              <th className="sticky left-0 bg-card z-10 text-left pl-1 pr-3 pb-2 font-medium text-xs text-muted-foreground shadow-[2px_0_0_0_var(--color-card)]">
                 <div className="w-[140px] sm:w-[180px]">Attendee</div>
               </th>
               {dates.map(d => (
@@ -366,7 +366,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                   {formatDate(d)}
                 </th>
               ))}
-              <th className="pl-2 pr-6 pb-2 font-medium text-xs text-muted-foreground text-right whitespace-nowrap">
+              <th className="pl-2 pr-2 pb-2 font-medium text-xs text-muted-foreground text-right whitespace-nowrap">
                 Rate
               </th>
             </tr>
@@ -376,7 +376,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
               const stat = stats.find(s => s.name === a.name)!;
               return (
                 <tr key={a.name} className="group">
-                  <td className="sticky left-0 bg-card group-hover:bg-muted/40 z-10 pl-6 pr-3 py-1 text-sm font-medium transition-colors shadow-[2px_0_0_0_var(--color-card)] group-hover:shadow-[2px_0_0_0_var(--color-muted)]">
+                  <td className="sticky left-0 bg-card group-hover:bg-muted/40 z-10 pl-1 pr-3 py-1 text-sm font-medium transition-colors shadow-[2px_0_0_0_var(--color-card)] group-hover:shadow-[2px_0_0_0_var(--color-muted)]">
                     <div className="w-[140px] sm:w-[180px] truncate" title={a.name}>{a.name}</div>
                   </td>
                   {dates.map(d => {
@@ -410,7 +410,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                       </td>
                     );
                   })}
-                  <td className="pl-2 pr-6 py-1 text-sm tabular-nums text-right text-muted-foreground whitespace-nowrap">
+                  <td className="pl-2 pr-2 py-1 text-sm tabular-nums text-right text-muted-foreground whitespace-nowrap">
                     <span
                       className={cn(
                         stat.rate >= 80
@@ -427,7 +427,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
               );
             })}
             <tr>
-              <td className="sticky left-0 bg-card z-10 pl-6 pr-3 pt-3 text-xs font-medium text-muted-foreground whitespace-nowrap shadow-[2px_0_0_0_var(--color-card)]">
+              <td className="sticky left-0 bg-card z-10 pl-1 pr-3 pt-3 text-xs font-medium text-muted-foreground whitespace-nowrap shadow-[2px_0_0_0_var(--color-card)]">
                 <div className="w-[140px] sm:w-[180px]">Total present</div>
               </td>
               {totalsByDate.map(t => (

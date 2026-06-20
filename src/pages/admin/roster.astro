@@ -175,7 +175,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
                 <form method="post" class="flex justify-end lg:justify-start items-center" onsubmit={`return confirm('Delete ${m.full_name?.replace(/'/g, "\\'")}? Their attendance history will also be removed.')`}>
                   <input type="hidden" name="_action" value="delete" />
                   <input type="hidden" name="id" value={m.id} />
-                  <AstroButton type="submit" variant="destructive" size="sm" className="w-full sm:w-auto mt-6">
+                  <AstroButton type="submit" variant="destructive" size="sm" className="w-full sm:w-auto lg:mt-6 mt-0">
                     <Trash2 className="w-4 h-4 mr-2" />
                     Remove member
                   </AstroButton>
