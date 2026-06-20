@@ -84,7 +84,8 @@ attendance.forEach(a => {
     reason: a.note ?? null,
     verification_status: (a as any).verification_status,
     verification_method: (a as any).verification_method,
-    calculated_distance_meters: (a as any).calculated_distance_meters
+    calculated_distance_meters: (a as any).calculated_distance_meters,
+    checked_in_at: a.checked_in_at
   });
 });
 

@@ -32,6 +32,20 @@ const formatDate = (d: string) => {
   return `${dt.getMonth() + 1}/${dt.getDate()}`;
 };
 
+const formatCheckinTime = (isoStr?: string) => {
+  if (!isoStr) return "";
+  try {
+    const date = new Date(isoStr);
+    return date.toLocaleTimeString("en-US", {
+      timeZone: "America/Los_Angeles",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+};
+
 const statusLabel = (s: AttendanceStatus | null | undefined) => {
   if (s === "present") return "Present";
   if (s === "late") return "Late";
@@ -231,6 +245,11 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className={cn("h-2 w-2 rounded-full", statusDotClass(rec?.status))} />
             <span className="text-xs font-medium">{statusLabel(rec?.status)}</span>
+            {rec?.checked_in_at && (
+              <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
+                {formatCheckinTime(rec.checked_in_at)}
+              </span>
+            )}
           </div>
           {note ? (
             <p className="text-xs text-muted-foreground italic leading-snug">
@@ -242,16 +261,19 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
           )}
 
           {/* Geofence verification details */}
-          {rec?.verification_status && rec.verification_status !== 'unverified' && (
+          {rec?.verification_status && (
             <div className="mt-2 pt-2 border-t text-[10px] text-muted-foreground">
               <div className="flex justify-between">
                 <span>Location:</span>
                 <span className={cn(
                   "font-semibold",
-                  rec.verification_status.startsWith('out_of_bounds') ? "text-rose-500" : "text-emerald-500"
+                  rec.verification_status.startsWith('out_of_bounds') ? "text-rose-500" :
+                  rec.verification_status === 'unverified' ? "text-amber-500" : "text-emerald-500"
                 )}>
-                  {rec.verification_status.startsWith('out_of_bounds') ? "Out of Bounds" : "Verified"}
+                  {rec.verification_status.startsWith('out_of_bounds') ? "Out of Bounds" :
+                   rec.verification_status === 'unverified' ? "Collected" : "Verified"}
                   {rec.verification_method === 'ip' && " (IP)"}
+                  {rec.verification_method === 'gps' && " (GPS)"}
                 </span>
               </div>
               {rec.calculated_distance_meters !== null && rec.calculated_distance_meters !== undefined && (
@@ -326,11 +348,19 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
               </p>
             )}
 
-            {rec?.verification_status && (
+            {(rec?.verification_status || rec?.checked_in_at) && (
               <div className="mt-4 p-3 bg-muted/50 rounded-2xl text-[11px] text-muted-foreground border">
-                <p className="font-semibold text-foreground mb-1">Location Verification Log</p>
-                <p>Method: {rec.verification_method?.toUpperCase() || 'NONE'}</p>
-                <p>Status: {rec.verification_status?.toUpperCase()}</p>
+                <p className="font-semibold text-foreground mb-1">Check-in Audit Log</p>
+                {rec.checked_in_at && (
+                  <p>Time: {new Date(rec.checked_in_at).toLocaleTimeString("en-US", {
+                    timeZone: "America/Los_Angeles",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit"
+                  })} (Pacific)</p>
+                )}
+                {rec.verification_method && <p>Method: {rec.verification_method.toUpperCase()}</p>}
+                {rec.verification_status && <p>Status: {rec.verification_status.toUpperCase()}</p>}
                 {rec.calculated_distance_meters !== null && rec.calculated_distance_meters !== undefined && (
                   <p>Calculated Distance: {Math.round(rec.calculated_distance_meters)} meters</p>
                 )}
