@@ -38,7 +38,7 @@ const isAdmin = profile?.role === 'admin';
 const [eventsRes, rosterRes, attendanceRes] = await Promise.all([
   supabase.from('events').select('id, title, starts_at').order('starts_at', { ascending: true }),
   supabase.from('roster_members').select('id, full_name, claimed_user_id').order('full_name', { ascending: true }),
-  supabase.from('attendance').select('event_id, roster_member_id, status, note, checked_in_at')
+  supabase.from('attendance').select('event_id, roster_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters')
 ]);
 
 const events = eventsRes.data || [];
@@ -71,14 +71,21 @@ events.forEach(e => {
 const dates = [...datesSet].sort();
 
 // Build matrix data
-const recordsByMember: Record<string, { date: string; status: AttendanceStatus; reason: string | null }[]> = {};
+const recordsByMember: Record<string, AttendanceRecord[]> = {};
 attendance.forEach(a => {
   if (!a.roster_member_id) return;
   const date = dateByEvent[a.event_id];
   if (!date) return;
   const status = (a.status === 'on_time' ? 'present' : a.status) as AttendanceStatus;
   if (!recordsByMember[a.roster_member_id]) recordsByMember[a.roster_member_id] = [];
-  recordsByMember[a.roster_member_id].push({ date, status, reason: a.note ?? null });
+  recordsByMember[a.roster_member_id].push({ 
+    date, 
+    status, 
+    reason: a.note ?? null,
+    verification_status: (a as any).verification_status,
+    verification_method: (a as any).verification_method,
+    calculated_distance_meters: (a as any).calculated_distance_meters
+  });
 });
 
 const data: AttendanceData = {

@@ -106,11 +106,11 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
   }, [attendees]);
 
   const recordIndex = useMemo(() => {
-    const idx: Record<string, Record<string, { status: AttendanceStatus; reason: string | null }>> = {};
+    const idx: Record<string, Record<string, AttendanceRecord>> = {};
     attendees.forEach(a => {
       idx[a.name] = {};
       a.records.forEach(r => {
-        idx[a.name][r.date] = { status: r.status, reason: r.reason };
+        idx[a.name][r.date] = r;
       });
     });
     return idx;
@@ -240,6 +240,28 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
           ) : (
             <p className="text-[11px] text-muted-foreground/60 italic">Click to add a note</p>
           )}
+
+          {/* Geofence verification details */}
+          {rec?.verification_status && rec.verification_status !== 'unverified' && (
+            <div className="mt-2 pt-2 border-t text-[10px] text-muted-foreground">
+              <div className="flex justify-between">
+                <span>Location:</span>
+                <span className={cn(
+                  "font-semibold",
+                  rec.verification_status.startsWith('out_of_bounds') ? "text-rose-500" : "text-emerald-500"
+                )}>
+                  {rec.verification_status.startsWith('out_of_bounds') ? "Out of Bounds" : "Verified"}
+                  {rec.verification_method === 'ip' && " (IP)"}
+                </span>
+              </div>
+              {rec.calculated_distance_meters !== null && rec.calculated_distance_meters !== undefined && (
+                <div className="flex justify-between mt-0.5">
+                  <span>Distance:</span>
+                  <span>{Math.round(rec.calculated_distance_meters)}m</span>
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
       </div>
     );
@@ -302,6 +324,17 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
               <p className="text-[10px] text-muted-foreground mt-2">
                 Original: <span className="italic">&ldquo;{original}&rdquo;</span>
               </p>
+            )}
+
+            {rec?.verification_status && (
+              <div className="mt-4 p-3 bg-muted/50 rounded-2xl text-[11px] text-muted-foreground border">
+                <p className="font-semibold text-foreground mb-1">Location Verification Log</p>
+                <p>Method: {rec.verification_method?.toUpperCase() || 'NONE'}</p>
+                <p>Status: {rec.verification_status?.toUpperCase()}</p>
+                {rec.calculated_distance_meters !== null && rec.calculated_distance_meters !== undefined && (
+                  <p>Calculated Distance: {Math.round(rec.calculated_distance_meters)} meters</p>
+                )}
+              </div>
             )}
 
             <div className="flex items-center justify-between gap-2 mt-5">
@@ -397,6 +430,9 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                           )}
                           aria-label={`${a.name} ${d} ${statusLabel(rec?.status)}`}
                         >
+                          {(rec?.verification_status === 'out_of_bounds' || rec?.verification_status === 'out_of_bounds_ip') && (
+                            <span className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-rose-500 animate-pulse border border-card" />
+                          )}
                           {note && (
                             <span
                               className={cn(

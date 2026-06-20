@@ -4,6 +4,9 @@ export interface AttendanceRecord {
   date: string;
   status: AttendanceStatus;
   reason: string | null;
+  verification_status?: 'verified' | 'verified_ip' | 'out_of_bounds' | 'out_of_bounds_ip' | 'unverified';
+  verification_method?: 'gps' | 'ip' | 'none';
+  calculated_distance_meters?: number | null;
 }
 
 export interface AttendanceMember {
