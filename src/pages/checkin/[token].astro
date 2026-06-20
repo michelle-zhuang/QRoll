@@ -315,7 +315,7 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
                   <input type="hidden" name="geolocation_error" id="geolocation_error" />
                 </>
               )}
-              <AstroButton type="submit" size="lg" className="w-full h-14 text-base font-semibold">
+              <AstroButton type="submit" size="lg" className="w-full h-14 text-base font-semibold" id="submit-btn">
                 <span class="flex flex-col items-center">
                   <span>Submit attendance</span>
                   {currentStatus?.status === 'late' && <span class="text-[10px] uppercase tracking-wider opacity-70 mt-0.5">Status: late</span>}
@@ -330,22 +330,45 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
   </main>
   <script is:inline>
     const form = document.getElementById('checkin-form');
+    const submitBtn = document.getElementById('submit-btn');
     if (form && document.getElementById('client_latitude')) {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        const textSpan = submitBtn.querySelector('span > span');
+        if (textSpan) {
+          submitBtn.dataset.originalText = textSpan.innerText;
+          textSpan.innerText = 'Acquiring location...';
+        }
+      }
+
+      function enableSubmit() {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          const textSpan = submitBtn.querySelector('span > span');
+          if (textSpan && submitBtn.dataset.originalText) {
+            textSpan.innerText = submitBtn.dataset.originalText;
+          }
+        }
+      }
+
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
             document.getElementById('client_latitude').value = position.coords.latitude;
             document.getElementById('client_longitude').value = position.coords.longitude;
             document.getElementById('client_accuracy').value = position.coords.accuracy;
+            enableSubmit();
           },
           (error) => {
             const errorTypes = { 1: 'PERMISSION_DENIED', 2: 'POSITION_UNAVAILABLE', 3: 'TIMEOUT' };
             document.getElementById('geolocation_error').value = errorTypes[error.code] || 'UNKNOWN_ERROR';
+            enableSubmit();
           },
           { enableHighAccuracy: true, timeout: 6000 }
         );
       } else {
         document.getElementById('geolocation_error').value = 'GEOLOCATION_NOT_SUPPORTED';
+        enableSubmit();
       }
     }
   </script>
