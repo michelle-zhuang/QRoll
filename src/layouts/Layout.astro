@@ -7,9 +7,10 @@ import { createSupabaseClient } from "../lib/supabase";
 
 interface Props {
 	title?: string;
+	hideNavbar?: boolean;
 }
 
-const { title = 'QRoll' } = Astro.props;
+const { title = 'QRoll', hideNavbar = false } = Astro.props;
 const currentPath = Astro.url.pathname;
 
 // Fetch user session and profile for role logic
@@ -55,9 +56,9 @@ if (user) {
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 	</head>
-	<body class="bg-background text-foreground antialiased min-h-screen">
-		<Navbar client:load user={user as any} role={role as any} currentPath={currentPath} />
-		<div class="flex-grow">
+	<body class="bg-background text-foreground antialiased min-h-screen flex flex-col">
+		{!hideNavbar && <Navbar client:load user={user as any} role={role as any} currentPath={currentPath} />}
+		<div class="flex-grow flex flex-col">
 			<slot />
 		</div>
 		<Toaster client:load />
