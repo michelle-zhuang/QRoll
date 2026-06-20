@@ -20,7 +20,6 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +40,7 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
     let body: Record<string, string>;
     if (tab === 'new') {
       if (!newName.trim()) { setError('Name is required.'); setLoading(false); return; }
-      body = { newName, newEmail };
+      body = { newName };
     } else {
       if (!selectedId) { setError('Please select a roster member.'); setLoading(false); return; }
       body = { rosterMemberId: selectedId };
@@ -328,17 +327,6 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               autoFocus
-            />
-          </div>
-          <div className="rob-field">
-            <label className="rob-label" htmlFor="rob-new-email">Email (optional)</label>
-            <input
-              id="rob-new-email"
-              className="rob-input"
-              type="email"
-              placeholder="your@email.com"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
             />
           </div>
         </>

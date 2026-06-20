@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       .from('roster_members')
       .insert({
         full_name: newName.trim(),
-        email: newEmail?.trim() || null,
+        email: session.user.email ?? null,
         claimed_user_id: session.user.id,
       });
 
