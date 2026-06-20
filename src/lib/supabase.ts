@@ -90,8 +90,10 @@ class MockQueryBuilder {
   table: string;
   operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   opData: any = null;
-  filters: { field: string; value: any }[] = [];
+  filters: { field: string; op: string; value: any }[] = [];
   isSingle = false;
+  isMaybeSingle = false;
+  limitCount: number | null = null;
 
   constructor(table: string) {
     this.table = table;
@@ -126,16 +128,47 @@ class MockQueryBuilder {
   }
 
   eq(field: string, value: any) {
-    this.filters.push({ field, value });
+    this.filters.push({ field, op: 'eq', value });
     return this;
   }
 
-  order(field: string, options?: any) {
+  is(field: string, value: any) {
+    this.filters.push({ field, op: 'is', value });
+    return this;
+  }
+
+  lte(field: string, value: any) {
+    this.filters.push({ field, op: 'lte', value });
+    return this;
+  }
+
+  gte(field: string, value: any) {
+    this.filters.push({ field, op: 'gte', value });
+    return this;
+  }
+
+  gt(field: string, value: any) {
+    this.filters.push({ field, op: 'gt', value });
+    return this;
+  }
+
+  lt(field: string, value: any) {
+    this.filters.push({ field, op: 'lt', value });
+    return this;
+  }
+
+  limit(n: number) {
+    this.limitCount = n;
     return this;
   }
 
   single() {
     this.isSingle = true;
+    return this;
+  }
+
+  maybeSingle() {
+    this.isMaybeSingle = true;
     return this;
   }
 
@@ -153,10 +186,26 @@ class MockQueryBuilder {
     if (this.operation === 'select') {
       let result = [...dataset];
       for (const filter of this.filters) {
-        result = result.filter(item => item[filter.field] === filter.value);
+        if (filter.op === 'eq') {
+          result = result.filter(item => item[filter.field] === filter.value);
+        } else if (filter.op === 'is') {
+          result = result.filter(item => item[filter.field] === filter.value);
+        } else if (filter.op === 'lte') {
+          result = result.filter(item => item[filter.field] <= filter.value);
+        } else if (filter.op === 'gte') {
+          result = result.filter(item => item[filter.field] >= filter.value);
+        } else if (filter.op === 'gt') {
+          result = result.filter(item => item[filter.field] > filter.value);
+        } else if (filter.op === 'lt') {
+          result = result.filter(item => item[filter.field] < filter.value);
+        }
       }
+      if (this.limitCount !== null) result = result.slice(0, this.limitCount);
       if (this.isSingle) {
-        return { data: result[0] || null, error: null };
+        return { data: result[0] ?? null, error: null };
+      }
+      if (this.isMaybeSingle) {
+        return { data: result[0] ?? null, error: null };
       }
       return { data: result, error: null };
     }
@@ -205,7 +254,13 @@ class MockQueryBuilder {
       for (let i = 0; i < dataset.length; i++) {
         let match = true;
         for (const filter of this.filters) {
-          if (dataset[i][filter.field] !== filter.value) match = false;
+          const val = dataset[i][filter.field];
+          if (filter.op === 'eq' && val !== filter.value) match = false;
+          else if (filter.op === 'is' && val !== filter.value) match = false;
+          else if (filter.op === 'lte' && !(val <= filter.value)) match = false;
+          else if (filter.op === 'gte' && !(val >= filter.value)) match = false;
+          else if (filter.op === 'gt' && !(val > filter.value)) match = false;
+          else if (filter.op === 'lt' && !(val < filter.value)) match = false;
         }
         if (match) {
           dataset[i] = { ...dataset[i], ...this.opData };

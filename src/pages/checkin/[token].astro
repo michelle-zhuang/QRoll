@@ -5,6 +5,13 @@ import { determineCheckinStatus, formatPacificTime, formatPacificDateTime } from
 import AstroButton from '../../components/AstroButton.astro';
 import AstroCard from '../../components/AstroCard.astro';
 import AstroBadge from '../../components/AstroBadge.astro';
+import { RosterOnboardingCard } from '../../components/RosterOnboardingCard';
+import {
+  findExactNameMatch,
+  findFuzzyMatches,
+  getAllUnclaimedMembers,
+  linkRosterMember,
+} from '../../lib/onboarding';
 
 const { token } = Astro.params;
 const supabase = createSupabaseClient(Astro.cookies);
@@ -12,6 +19,9 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect(`/login?next=/checkin/${token}`);
 
+// --- Auto-link by name if not yet linked ----------------------------------
+// We attempt this on every page load so that a user who just signed up via
+// Google (and whose profile trigger ran) also gets the benefit on first visit.
 let { data: event } = await supabase.from('events').select('*').eq('qr_token', token).maybeSingle();
 let nextOccurrence: { title: string; checkin_opens_at: string } | null = null;
 
@@ -52,11 +62,46 @@ if (!event) {
 
 if (!event && !nextOccurrence) return Astro.redirect('/404');
 
-const { data: rosterMember } = await supabase
+// Attempt to auto-link this user to a roster member if not already claimed.
+let { data: rosterMember } = await supabase
   .from('roster_members')
   .select('id')
   .eq('claimed_user_id', session.user.id)
   .maybeSingle();
+
+if (!rosterMember) {
+  const userFullName =
+    session.user.user_metadata?.full_name ||
+    session.user.user_metadata?.name ||
+    '';
+
+  if (userFullName) {
+    const exactMatch = await findExactNameMatch(supabase, userFullName);
+    if (exactMatch) {
+      await linkRosterMember(supabase, session.user.id, exactMatch.id);
+      // Re-fetch so the rest of the page sees the linked member.
+      const { data: linked } = await supabase
+        .from('roster_members')
+        .select('id')
+        .eq('claimed_user_id', session.user.id)
+        .maybeSingle();
+      rosterMember = linked;
+    }
+  }
+}
+
+// If still unlinked, gather data for the onboarding card.
+const userFullName =
+  session.user.user_metadata?.full_name ||
+  session.user.user_metadata?.name ||
+  '';
+const showOnboardingCard = !rosterMember;
+const fuzzyMatches = showOnboardingCard
+  ? await findFuzzyMatches(supabase, userFullName)
+  : [];
+const allUnclaimedMembers = showOnboardingCard
+  ? await getAllUnclaimedMembers(supabase)
+  : [];
 
 const { data: existing } = event
   ? rosterMember
@@ -90,7 +135,7 @@ if (event && Astro.request.method === 'POST' && !existing) {
   } else if (status === 'closed') {
     message = 'Check-in has closed.';
   } else if (!rosterMember) {
-    message = 'Your account is not linked to a roster entry yet. Please ask an admin to link you.';
+    // The onboarding card is shown below — skip the generic error.
   } else {
     const ip = Astro.request.headers.get('x-forwarded-for') || Astro.clientAddress;
     const ua = Astro.request.headers.get('user-agent');
@@ -166,6 +211,22 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
               Return to dashboard
             </AstroButton>
           </a>
+        </div>
+      ) : showOnboardingCard ? (
+        <div class="space-y-5 text-left">
+          <div>
+            <p class="text-base font-semibold">Link your account</p>
+            <p class="text-sm text-muted-foreground mt-1">
+              Your account isn't linked to a roster entry yet. Choose a match below,
+              search the full roster, or create a new entry to continue.
+            </p>
+          </div>
+          <RosterOnboardingCard
+            fuzzyMatches={fuzzyMatches}
+            allUnclaimed={allUnclaimedMembers}
+            redirectTo={`/checkin/${token}`}
+            client:load
+          />
         </div>
       ) : (
         <div class="space-y-6">
