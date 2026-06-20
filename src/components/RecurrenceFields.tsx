@@ -3,6 +3,10 @@ import { cn } from "src/lib/utils";
 import { Button } from "src/components/ui/button";
 import { Input } from "src/components/ui/input";
 import { Label } from "src/components/ui/label";
+import { Calendar } from "src/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "src/components/ui/popover";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 
 type Freq = "weekly" | "biweekly" | "daily" | "monthly";
 type EndKind = "count" | "until";
@@ -24,7 +28,26 @@ export function RecurrenceFields() {
   const [endKind, setEndKind] = React.useState<EndKind>("count");
   const [count, setCount] = React.useState<string>("8");
   const [until, setUntil] = React.useState<string>("");
+  const [untilOpen, setUntilOpen] = React.useState(false);
   const [tz, setTz] = React.useState<string>("UTC");
+
+  const untilDate = React.useMemo(() => {
+    if (!until) return undefined;
+    const [y, m, d] = until.split("-").map(Number);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return undefined;
+    return new Date(y, m - 1, d);
+  }, [until]);
+
+  const handleUntilSelect = (d: Date | undefined) => {
+    if (!d) {
+      setUntil("");
+    } else {
+      const yStr = d.getFullYear();
+      const mStr = String(d.getMonth() + 1).padStart(2, "0");
+      const dStr = String(d.getDate()).padStart(2, "0");
+      setUntil(`${yStr}-${mStr}-${dStr}`);
+    }
+  };
 
   React.useEffect(() => {
     try {
@@ -129,16 +152,42 @@ export function RecurrenceFields() {
                   type="radio"
                   name="recurrence_end_kind"
                   checked={endKind === "until"}
-                  onChange={() => setEndKind("until")}
+                  onChange={() => {
+                    setEndKind("until");
+                    setUntilOpen(true);
+                  }}
                 />
                 <span className="text-sm">Until</span>
-                <Input
-                  type="date"
-                  value={until}
-                  onChange={e => setUntil(e.target.value)}
-                  className="h-9"
-                  disabled={endKind !== "until"}
-                />
+                <Popover open={untilOpen} onOpenChange={(o) => {
+                  if (endKind === "until") setUntilOpen(o);
+                }}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={endKind !== "until"}
+                      className={cn(
+                        "h-9 px-3 text-xs justify-start text-left font-normal rounded-xl transition-all duration-200 min-w-[140px] cursor-pointer",
+                        untilDate 
+                          ? "bg-muted/40 border-primary/20 text-foreground font-semibold" 
+                          : "text-muted-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <CalendarIcon className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{untilDate ? format(untilDate, "PPP") : "Select date"}</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={untilDate}
+                      onSelect={(d) => {
+                        handleUntilSelect(d);
+                        setUntilOpen(false);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
               </label>
             </div>
           </div>
