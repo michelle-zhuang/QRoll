@@ -85,6 +85,10 @@ const mockAttendance = [
   { event_id: 'event-id-2', roster_member_id: 'roster-id-5', status: 'late', note: 'Worked late', checked_in_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 12 * 60 * 1000).toISOString() }
 ];
 
+const mockAppSettings = [
+  { key: 'allow_member_dashboard', value: false }
+];
+
 // Query Builder simulator class for mock actions
 class MockQueryBuilder {
   table: string;
@@ -190,6 +194,7 @@ class MockQueryBuilder {
     else if (this.table === 'roster_members') dataset = mockRosterMembers;
     else if (this.table === 'events') dataset = mockEvents;
     else if (this.table === 'attendance') dataset = mockAttendance;
+    else if (this.table === 'app_settings') dataset = mockAppSettings;
 
     if (this.operation === 'select') {
       let result = [...dataset];
@@ -320,6 +325,9 @@ class MockQueryBuilder {
       } else if (this.table === 'attendance') {
         mockAttendance.length = 0;
         mockAttendance.push(...remaining);
+      } else if (this.table === 'app_settings') {
+        mockAppSettings.length = 0;
+        mockAppSettings.push(...remaining);
       }
 
       return { data: deleted, error: null };

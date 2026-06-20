@@ -11,6 +11,23 @@ if (!session) return Astro.redirect('/login');
 const { data: profile } = await supabase.from('profiles').select('role, full_name, email').eq('id', session.user.id).single();
 if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
 
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const allowMemberDashboard = formData.get('allow_member_dashboard') === 'true';
+
+  await supabase.from('app_settings').upsert({
+    key: 'allow_member_dashboard',
+    value: allowMemberDashboard
+  });
+}
+
+const { data: setting } = await supabase
+  .from('app_settings')
+  .select('value')
+  .eq('key', 'allow_member_dashboard')
+  .maybeSingle();
+const allowMemberDashboard = setting ? (setting.value === true || setting.value === 'true') : false;
+
 const { data: events } = await supabase.from('events').select('*').order('created_at', { ascending: false });
 ---
 <Layout title="Admin Dashboard">
@@ -34,6 +51,20 @@ const { data: events } = await supabase.from('events').select('*').order('create
           </AstroButton>
         </a>
       </div>
+    </div>
+
+    <!-- Global App Settings Section -->
+    <div class="bg-card border border-border rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="space-y-1">
+        <h2 class="text-lg font-semibold tracking-tight">Member Dashboard Access</h2>
+        <p class="text-xs text-muted-foreground">Control whether regular members can access the attendance dashboard page.</p>
+      </div>
+      <form method="POST" id="setting-form">
+        <input type="hidden" name="allow_member_dashboard" value={allowMemberDashboard ? "false" : "true"} />
+        <AstroButton type="submit" variant={allowMemberDashboard ? "destructive" : "default"} className="h-10 px-4 rounded-xl text-xs font-semibold">
+          {allowMemberDashboard ? "Restrict Member Dashboard" : "Allow Member Dashboard"}
+        </AstroButton>
+      </form>
     </div>
 
     <EventsTable events={events || []} client:load />

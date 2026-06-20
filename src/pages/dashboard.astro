@@ -34,16 +34,20 @@ if (!profile) {
 
 const isAdmin = profile?.role === 'admin';
 
-// Pull all events + roster + attendance
-const [eventsRes, rosterRes, attendanceRes] = await Promise.all([
+// Pull all events + roster + attendance + settings
+const [eventsRes, rosterRes, attendanceRes, settingRes] = await Promise.all([
   supabase.from('events').select('id, title, starts_at').order('starts_at', { ascending: true }),
   supabase.from('roster_members').select('id, full_name, claimed_user_id').order('full_name', { ascending: true }),
-  supabase.from('attendance').select('event_id, roster_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters')
+  supabase.from('attendance').select('event_id, roster_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
+  supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle()
 ]);
 
 const events = eventsRes.data || [];
 const roster = rosterRes.data || [];
 const attendance = attendanceRes.data || [];
+const setting = settingRes?.data;
+const allowMemberDashboard = setting ? (setting.value === true || setting.value === 'true') : false;
+const isRestricted = !isAdmin && !allowMemberDashboard;
 
 const linkedMember = roster.find(m => m.claimed_user_id === session.user.id);
 const displayName = linkedMember?.full_name || profile?.full_name || profile?.email || session.user.email;
@@ -151,155 +155,171 @@ const hasData = filteredRoster.length > 0 && events.length > 0;
 ---
 <Layout title="Dashboard">
   <main class="max-w-7xl mx-auto p-6 md:p-8">
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-      <div>
-        <p class="text-sm text-muted-foreground">Welcome back,</p>
-        <h1 class="text-3xl font-semibold tracking-tight mt-0.5 break-all">{displayName}</h1>
+    {isRestricted ? (
+      <div class="flex items-center justify-center min-h-[50vh] py-12">
+        <AstroCard className="max-w-md w-full p-8 text-center">
+          <div class="inline-flex p-3 rounded-full bg-amber-100 text-amber-700 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m0-6h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <h1 class="text-xl font-bold text-foreground">Access Restricted</h1>
+          <p class="text-sm text-muted-foreground mt-2">
+            The attendance dashboard is currently restricted to administrators. Please contact your organization leader for details.
+          </p>
+        </AstroCard>
       </div>
-      {isAdmin && (
-        <div class="flex items-center gap-2">
-          <a href="/admin/roster">
-            <AstroButton variant="outline" size="sm">
-              <Users className="w-4 h-4" />
-              Roster
-            </AstroButton>
-          </a>
-          <a href="/admin">
-            <AstroButton variant="outline" size="sm">
-              <Calendar className="w-4 h-4" />
-              Manage events
-            </AstroButton>
-          </a>
-        </div>
-      )}
-    </div>
-
-    {!hasData ? (
-      <AstroCard className="p-12 text-center">
-        <div class="inline-flex p-3 rounded-full bg-muted mb-4">
-          <Calendar className="w-6 h-6 text-muted-foreground" />
-        </div>
-        <p class="text-base font-medium">No attendance data yet</p>
-        <p class="text-sm text-muted-foreground mt-1">{isAdmin ? 'Create your first event or seed the roster to get started.' : 'Once events are recorded you\'ll see analytics here.'}</p>
-      </AstroCard>
     ) : (
       <>
-        <!-- Top stats banner (no individual cards) -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y border-border mb-8 bg-card/10 px-6 rounded-xl">
-          <div class="flex flex-col gap-1 first:pl-0 md:border-r border-border md:pr-6 last:border-r-0">
-            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Events</span>
-            <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{dates.length}</span>
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div>
+            <p class="text-sm text-muted-foreground">Welcome back,</p>
+            <h1 class="text-3xl font-semibold tracking-tight mt-0.5 break-all">{displayName}</h1>
           </div>
-          <div class="flex flex-col gap-1 md:border-r border-border md:px-6 last:border-r-0">
-            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Roster</span>
-            <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{filteredRoster.length}</span>
-          </div>
-          <div class="flex flex-col gap-1 md:border-r border-border md:px-6 last:border-r-0">
-            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">On-time rate</span>
-            <div class="flex items-baseline gap-1.5">
-              <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{onTimeRate}%</span>
+          {isAdmin && (
+            <div class="flex items-center gap-2">
+              <a href="/admin/roster">
+                <AstroButton variant="outline" size="sm">
+                  <Users className="w-4 h-4" />
+                  Roster
+                </AstroButton>
+              </a>
+              <a href="/admin">
+                <AstroButton variant="outline" size="sm">
+                  <Calendar className="w-4 h-4" />
+                  Manage events
+                </AstroButton>
+              </a>
             </div>
-            <div class="mt-2 h-1.5 w-full bg-muted rounded-full overflow-hidden">
-              <div class="h-full bg-emerald-400 rounded-full" style={`width:${onTimeRate}%`}></div>
-            </div>
-          </div>
-          <div class="flex flex-col gap-1 md:pl-6">
-            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Late / Absent</span>
-            <div class="flex items-baseline gap-1 text-3xl font-bold tracking-tight text-foreground tabular-nums">
-              <span>{totalLate}</span>
-              <span class="text-xl font-normal text-muted-foreground">/</span>
-              <span class="text-muted-foreground">{totalAbsent}</span>
-            </div>
-          </div>
+          )}
         </div>
 
-        <!-- Attendance Matrix -->
-        <AstroCard className="p-6 mb-8 overflow-hidden">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-            <div>
-              <h2 class="text-lg font-semibold tracking-tight">Attendance matrix</h2>
-              <p class="text-xs text-muted-foreground mt-0.5">{isAdmin ? 'Hover for details, click any cell to add or edit a note.' : 'Hover any cell for status and notes.'}</p>
+        {!hasData ? (
+          <AstroCard className="p-12 text-center">
+            <div class="inline-flex p-3 rounded-full bg-muted mb-4">
+              <Calendar className="w-6 h-6 text-muted-foreground" />
             </div>
-            <div class="flex items-center gap-3 text-xs flex-wrap">
-              <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-emerald-300"></span>Present</span>
-              <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-amber-300"></span>Late</span>
-              <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-rose-300"></span>Absent</span>
-              <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-muted"></span>N/A</span>
-              <span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-foreground/40"></span>Has note</span>
+            <p class="text-base font-medium">No attendance data yet</p>
+            <p class="text-sm text-muted-foreground mt-1">{isAdmin ? 'Create your first event or seed the roster to get started.' : 'Once events are recorded you\'ll see analytics here.'}</p>
+          </AstroCard>
+        ) : (
+          <>
+            <!-- Top stats banner (no individual cards) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y border-border mb-8 bg-card/10 px-6 rounded-xl">
+              <div class="flex flex-col gap-1 first:pl-0 md:border-r border-border md:pr-6 last:border-r-0">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Events</span>
+                <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{dates.length}</span>
+              </div>
+              <div class="flex flex-col gap-1 md:border-r border-border md:px-6 last:border-r-0">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Roster</span>
+                <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{filteredRoster.length}</span>
+              </div>
+              <div class="flex flex-col gap-1 md:border-r border-border md:px-6 last:border-r-0">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">On-time rate</span>
+                <div class="flex items-baseline gap-1.5">
+                  <span class="text-3xl font-bold tracking-tight text-foreground tabular-nums">{onTimeRate}%</span>
+                </div>
+                <div class="mt-2 h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div class="h-full bg-emerald-400 rounded-full" style={`width:${onTimeRate}%`}></div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-1 md:pl-6">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Late / Absent</span>
+                <div class="flex items-baseline gap-1 text-3xl font-bold tracking-tight text-foreground tabular-nums">
+                  <span>{totalLate}</span>
+                  <span class="text-xl font-normal text-muted-foreground">/</span>
+                  <span class="text-muted-foreground">{totalAbsent}</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <AttendanceMatrix data={data} canEditNotes={isAdmin} noteApiUrl={isAdmin ? "/api/attendance/note" : undefined} client:load />
-        </AstroCard>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {isAdmin && (
-            <AstroCard className="p-6">
-              <div class="flex items-center justify-between mb-5">
+            <!-- Attendance Matrix -->
+            <AstroCard className="p-6 mb-8 overflow-hidden">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                 <div>
-                  <h2 class="text-lg font-semibold tracking-tight">Top attendees</h2>
+                  <h2 class="text-lg font-semibold tracking-tight">Attendance matrix</h2>
+                  <p class="text-xs text-muted-foreground mt-0.5">{isAdmin ? 'Hover for details, click any cell to add or edit a note.' : 'Hover any cell for status and notes.'}</p>
+                </div>
+                <div class="flex items-center gap-3 text-xs flex-wrap">
+                  <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-emerald-300"></span>Present</span>
+                  <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-amber-300"></span>Late</span>
+                  <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-rose-300"></span>Absent</span>
+                  <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-muted"></span>N/A</span>
+                  <span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-foreground/40"></span>Has note</span>
+                </div>
+              </div>
+
+              <AttendanceMatrix data={data} canEditNotes={isAdmin} noteApiUrl={isAdmin ? "/api/attendance/note" : undefined} client:load />
+            </AstroCard>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {isAdmin && (
+                <AstroCard className="p-6">
+                  <div class="flex items-center justify-between mb-5">
+                    <div>
+                      <h2 class="text-lg font-semibold tracking-tight">Top attendees</h2>
+                      <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
+                    </div>
+                    <AstroBadge variant="secondary">{roster.length} total</AstroBadge>
+                  </div>
+                  <TopAttendeesChart data={topAttendees.map(a => ({ name: a.name, present: a.present, late: a.late, absent: a.absent }))} client:load />
+                </AstroCard>
+              )}
+
+              <AstroCard className={isAdmin ? "p-6" : "p-6 lg:col-span-2"}>
+                <div class="mb-5">
+                  <h2 class="text-lg font-semibold tracking-tight">Attendance per event</h2>
                   <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
                 </div>
-                <AstroBadge variant="secondary">{roster.length} total</AstroBadge>
-              </div>
-              <TopAttendeesChart data={topAttendees.map(a => ({ name: a.name, present: a.present, late: a.late, absent: a.absent }))} client:load />
-            </AstroCard>
-          )}
-
-          <AstroCard className={isAdmin ? "p-6" : "p-6 lg:col-span-2"}>
-            <div class="mb-5">
-              <h2 class="text-lg font-semibold tracking-tight">Attendance per event</h2>
-              <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
+                <PerEventStackedBars data={perEventStats} client:load />
+              </AstroCard>
             </div>
-            <PerEventStackedBars data={perEventStats} client:load />
-          </AstroCard>
-        </div>
 
-        <!-- Roster Insights Panel -->
-        {isAdmin && (
-          <AstroCard className="p-6 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
-              <div class="border-b md:border-b-0 md:border-r border-border pb-6 md:pb-0 md:pr-8">
-                <div class="mb-5">
-                  <h2 class="text-lg font-semibold tracking-tight">Least active</h2>
-                  <p class="text-xs text-muted-foreground mt-0.5">Lowest attendance count</p>
-                </div>
-                <ul class="space-y-2">
-                  {leastAttendees.map(a => (
-                    <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
-                      <div class="min-w-0">
-                        <p class="text-sm font-medium truncate">{a.name}</p>
-                        <p class="text-xs text-muted-foreground">{a.absent} missed · {a.attendanceRate}% rate</p>
-                      </div>
-                      <AstroBadge variant="outline">{a.present + a.late}/{a.total}</AstroBadge>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <!-- Roster Insights Panel -->
+            {isAdmin && (
+              <AstroCard className="p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
+                  <div class="border-b md:border-b-0 md:border-r border-border pb-6 md:pb-0 md:pr-8">
+                    <div class="mb-5">
+                      <h2 class="text-lg font-semibold tracking-tight">Least active</h2>
+                      <p class="text-xs text-muted-foreground mt-0.5">Lowest attendance count</p>
+                    </div>
+                    <ul class="space-y-2">
+                      {leastAttendees.map(a => (
+                        <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
+                          <div class="min-w-0">
+                            <p class="text-sm font-medium truncate">{a.name}</p>
+                            <p class="text-xs text-muted-foreground">{a.absent} missed · {a.attendanceRate}% rate</p>
+                          </div>
+                          <AstroBadge variant="outline">{a.present + a.late}/{a.total}</AstroBadge>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-              <div class="pt-6 md:pt-0 md:pl-8">
-                <div class="mb-5">
-                  <h2 class="text-lg font-semibold tracking-tight">Most late arrivals</h2>
-                  <p class="text-xs text-muted-foreground mt-0.5">Total late check-ins</p>
+                  <div class="pt-6 md:pt-0 md:pl-8">
+                    <div class="mb-5">
+                      <h2 class="text-lg font-semibold tracking-tight">Most late arrivals</h2>
+                      <p class="text-xs text-muted-foreground mt-0.5">Total late check-ins</p>
+                    </div>
+                    {mostLate.length === 0 ? (
+                      <p class="text-sm text-muted-foreground py-8 text-center">No late check-ins recorded.</p>
+                    ) : (
+                      <ul class="space-y-2">
+                        {mostLate.map(a => (
+                          <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
+                            <div class="min-w-0">
+                              <p class="text-sm font-medium truncate">{a.name}</p>
+                              <p class="text-xs text-muted-foreground">{a.present} present · {a.absent} absent</p>
+                            </div>
+                            <AstroBadge variant="warning">{a.late} late</AstroBadge>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
-                {mostLate.length === 0 ? (
-                  <p class="text-sm text-muted-foreground py-8 text-center">No late check-ins recorded.</p>
-                ) : (
-                  <ul class="space-y-2">
-                    {mostLate.map(a => (
-                      <li class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 hover-row-premium">
-                        <div class="min-w-0">
-                          <p class="text-sm font-medium truncate">{a.name}</p>
-                          <p class="text-xs text-muted-foreground">{a.present} present · {a.absent} absent</p>
-                        </div>
-                        <AstroBadge variant="warning">{a.late} late</AstroBadge>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </AstroCard>
+              </AstroCard>
+            )}
+          </>
         )}
       </>
     )}
