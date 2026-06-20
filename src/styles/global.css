@@ -207,6 +207,15 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .animate-sticker-pop {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .animate-cat-float {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 @source "../**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}";
