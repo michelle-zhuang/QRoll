@@ -264,7 +264,15 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
           </div>
 
           {(currentStatus?.status === 'present' || currentStatus?.status === 'late') && (
-            <form method="post">
+            <form method="post" id="checkin-form">
+              {event!.geofence_enabled && (
+                <>
+                  <input type="hidden" name="client_latitude" id="client_latitude" />
+                  <input type="hidden" name="client_longitude" id="client_longitude" />
+                  <input type="hidden" name="client_accuracy" id="client_accuracy" />
+                  <input type="hidden" name="geolocation_error" id="geolocation_error" />
+                </>
+              )}
               <AstroButton type="submit" size="lg" className="w-full h-14 text-base font-semibold">
                 <span class="flex flex-col items-center">
                   <span>Submit attendance</span>
@@ -278,4 +286,25 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
       )}
     </AstroCard>
   </main>
+  <script is:inline>
+    const form = document.getElementById('checkin-form');
+    if (form && document.getElementById('client_latitude')) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            document.getElementById('client_latitude').value = position.coords.latitude;
+            document.getElementById('client_longitude').value = position.coords.longitude;
+            document.getElementById('client_accuracy').value = position.coords.accuracy;
+          },
+          (error) => {
+            const errorTypes = { 1: 'PERMISSION_DENIED', 2: 'POSITION_UNAVAILABLE', 3: 'TIMEOUT' };
+            document.getElementById('geolocation_error').value = errorTypes[error.code] || 'UNKNOWN_ERROR';
+          },
+          { enableHighAccuracy: true, timeout: 6000 }
+        );
+      } else {
+        document.getElementById('geolocation_error').value = 'GEOLOCATION_NOT_SUPPORTED';
+      }
+    }
+  </script>
 </Layout>
