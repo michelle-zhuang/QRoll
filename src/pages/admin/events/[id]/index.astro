@@ -135,8 +135,9 @@ const lateMinutesFor = (checkedAt: string) => {
                   <code class="text-xs font-mono break-all line-clamp-1 flex-1 text-muted-foreground">
                     {checkinUrl}
                   </code>
-                  <AstroButton size="icon" variant="ghost" className="h-7 w-7">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                  <AstroButton id="copy-btn" data-url={checkinUrl} size="icon" variant="ghost" className="h-7 w-7" aria-label="Copy check-in URL">
+                    <svg id="copy-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                    <svg id="check-icon" class="w-3.5 h-3.5 hidden text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                   </AstroButton>
                 </div>
               </div>
@@ -230,3 +231,34 @@ const lateMinutesFor = (checkedAt: string) => {
     </AstroCard>
   </main>
 </Layout>
+
+<script>
+  import { toast } from "sonner";
+
+  const copyBtn = document.getElementById("copy-btn");
+  const copyIcon = document.getElementById("copy-icon");
+  const checkIcon = document.getElementById("check-icon");
+
+  if (copyBtn && copyIcon && checkIcon) {
+    copyBtn.addEventListener("click", async () => {
+      const url = copyBtn.getAttribute("data-url");
+      if (!url) return;
+
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Check-in URL copied to clipboard!");
+
+        copyIcon.classList.add("hidden");
+        checkIcon.classList.remove("hidden");
+
+        setTimeout(() => {
+          copyIcon.classList.remove("hidden");
+          checkIcon.classList.add("hidden");
+        }, 2000);
+      } catch (err) {
+        console.error("Failed to copy text: ", err);
+        toast.error("Failed to copy URL to clipboard");
+      }
+    });
+  }
+</script>
