@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "src/lib/utils";
-import type { AttendanceData, AttendanceStatus } from "src/lib/attendanceTypes";
+import type { AttendanceData, AttendanceStatus, AttendanceRecord } from "src/lib/attendanceTypes";
 
 interface Props {
   data: AttendanceData;

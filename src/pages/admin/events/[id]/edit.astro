@@ -121,7 +121,7 @@ const closesAt = formatDateTime(event.checkin_closes_at);
         <div class="space-y-4 pt-6 border-t">
           <div class="flex items-center justify-between">
             <div class="space-y-0.5">
-              <Label htmlFor="geofence_toggle" class="text-base font-semibold">Geofencing Verification</Label>
+              <Label htmlFor="geofence_toggle" className="text-base font-semibold">Geofencing Verification</Label>
               <p class="text-xs text-muted-foreground">Restrict check-ins to a physical radius around the event venue.</p>
             </div>
             <button
@@ -141,11 +141,11 @@ const closesAt = formatDateTime(event.checkin_closes_at);
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div class="space-y-2">
                 <Label htmlFor="latitude">Latitude</Label>
-                <Input id="latitude" name="latitude" type="number" step="any" placeholder="e.g. 47.6205" readOnly class="bg-muted/50" value={event.latitude || ''} />
+                <Input id="latitude" name="latitude" type="number" step="any" placeholder="e.g. 47.6205" readOnly className="bg-muted/50" value={event.latitude || ''} />
               </div>
               <div class="space-y-2">
                 <Label htmlFor="longitude">Longitude</Label>
-                <Input id="longitude" name="longitude" type="number" step="any" placeholder="e.g. -122.3493" readOnly class="bg-muted/50" value={event.longitude || ''} />
+                <Input id="longitude" name="longitude" type="number" step="any" placeholder="e.g. -122.3493" readOnly className="bg-muted/50" value={event.longitude || ''} />
               </div>
               <div class="space-y-2">
                 <Label htmlFor="geofence_radius_meters">Radius (meters)</Label>

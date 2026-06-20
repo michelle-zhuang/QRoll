@@ -6,7 +6,7 @@ import AstroBadge from '../components/AstroBadge.astro';
 import AstroButton from '../components/AstroButton.astro';
 import { AttendanceMatrix } from '../components/AttendanceMatrix';
 import { PerEventStackedBars, TopAttendeesChart } from '../components/DashboardCharts';
-import type { AttendanceData, AttendanceStatus } from '../lib/attendanceTypes';
+import type { AttendanceData, AttendanceStatus, AttendanceRecord } from '../lib/attendanceTypes';
 import { Users, Calendar } from 'lucide-react';
 
 const supabase = createSupabaseClient(Astro.cookies);

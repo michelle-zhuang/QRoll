@@ -50,7 +50,7 @@ function parse24hTime(timeStr: string) {
   if (h === 0) h = 12;
   const hour = h.toString();
   const minute = m < 10 ? `0${m}` : m.toString();
-  return { hour, minute, ampm };
+  return { hour, minute, ampm: ampm as "AM" | "PM" };
 }
 
 export function DateTimePicker({ name, defaultValue, required, className, id }: Props) {
