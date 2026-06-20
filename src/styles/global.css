@@ -50,6 +50,8 @@
   --animate-float-slow-2: float-slow-2 15s ease-in-out infinite;
   --animate-sway-slow: sway-slow 18s ease-in-out infinite;
   --animate-pulse-slow: pulse-slow 4s ease-in-out infinite;
+  --animate-sticker-pop: sticker-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  --animate-cat-float: cat-float 4s ease-in-out infinite;
 
   @keyframes accordion-down {
     from {
@@ -119,6 +121,29 @@
   @keyframes pulse-slow {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
+  }
+
+  @keyframes sticker-pop {
+    0% {
+      transform: scale(0.8) rotate(0deg);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.05) rotate(-3deg);
+    }
+    100% {
+      transform: scale(1) rotate(1deg);
+      opacity: 1;
+    }
+  }
+
+  @keyframes cat-float {
+    0%, 100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-6px) rotate(-1.5deg);
+    }
   }
 }
 
