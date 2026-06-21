@@ -22,13 +22,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const { roster_member_id, date, note } = body || {};
+  const { roster_member_id, date, note, status } = body || {};
   if (!roster_member_id || !date) {
     return new Response('Missing roster_member_id or date', { status: 400 });
   }
 
-  // Find the event row that matches this date (historical or live).
-  // Strategy: pick the event whose starts_at falls on the same calendar date in Pacific Time.
   const TZ = 'America/Los_Angeles';
   const dayStart = fromZonedTime(`${date}T00:00:00`, TZ).toISOString();
   const dayEnd = fromZonedTime(`${date}T23:59:59.999`, TZ).toISOString();
@@ -47,7 +45,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const eventId = events[0].id;
   const noteValue = typeof note === 'string' ? note.trim() : '';
 
-  // Upsert: update note if attendance row exists, otherwise insert with default status='absent'.
   const { data: existing } = await supabase
     .from('attendance')
     .select('id')
@@ -55,23 +52,37 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .eq('roster_member_id', roster_member_id)
     .maybeSingle();
 
-  if (existing) {
-    const { error } = await supabase
-      .from('attendance')
-      .update({ note: noteValue || null })
-      .eq('id', existing.id);
-    if (error) return new Response(error.message, { status: 500 });
+  if (status === 'none') {
+    if (existing) {
+      const { error } = await supabase
+        .from('attendance')
+        .delete()
+        .eq('id', existing.id);
+      if (error) return new Response(error.message, { status: 500 });
+    }
   } else {
-    const { error } = await supabase
-      .from('attendance')
-      .insert({
-        event_id: eventId,
-        roster_member_id,
-        status: 'absent',
-        note: noteValue || null,
-        checked_in_at: dayStart,
-      });
-    if (error) return new Response(error.message, { status: 500 });
+    const targetStatus = status || 'present';
+    if (existing) {
+      const { error } = await supabase
+        .from('attendance')
+        .update({ 
+          note: noteValue || null,
+          status: targetStatus
+        })
+        .eq('id', existing.id);
+      if (error) return new Response(error.message, { status: 500 });
+    } else {
+      const { error } = await supabase
+        .from('attendance')
+        .insert({
+          event_id: eventId,
+          roster_member_id,
+          status: targetStatus,
+          note: noteValue || null,
+          checked_in_at: dayStart,
+        });
+      if (error) return new Response(error.message, { status: 500 });
+    }
   }
 
   return new Response(JSON.stringify({ ok: true }), {
