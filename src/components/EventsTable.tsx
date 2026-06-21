@@ -8,7 +8,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ExternalLink, Search } from "lucide-react";
+import { ArrowUpDown, Search } from "lucide-react";
 
 import { Input } from "src/components/ui/input";
 import { Button } from "src/components/ui/button";
@@ -112,20 +112,12 @@ export function EventsTable({ events }: Props) {
           const ev = row.original;
           return (
             <div className="flex justify-end gap-2">
-              {ev.series_id && (
-                <form method="post" action={`/api/events/${ev.id}/cancel`}>
+              <form method="post" action={`/api/events/${ev.id}/cancel`} onClick={e => e.stopPropagation()}>
                   {ev.cancelled_at && <input type="hidden" name="undo" value="1" />}
                   <Button type="submit" variant="outline" size="sm">
                     {ev.cancelled_at ? "Restore" : "Cancel"}
                   </Button>
                 </form>
-              )}
-              <a href={`/admin/events/${ev.id}`}>
-                <Button variant="outline" size="sm">
-                  Manage
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </a>
             </div>
           );
         },
@@ -207,15 +199,36 @@ export function EventsTable({ events }: Props) {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map(row => (
-              <tr key={row.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} className="px-4 py-3 first:pl-6 last:pr-6">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {table.getRowModel().rows.map(row => {
+              const ev = row.original;
+              const cells = row.getVisibleCells();
+              return (
+                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                  {cells.map((cell, idx) => {
+                    const content = flexRender(cell.column.columnDef.cell, cell.getContext());
+                    if (cell.column.id === "actions") {
+                      return (
+                        <td key={cell.id} className="px-4 py-3 first:pl-6 last:pr-6">
+                          {content}
+                        </td>
+                      );
+                    }
+                    const isFirst = idx === 0;
+                    const isLast = idx === cells.length - 1;
+                    return (
+                      <td key={cell.id} className="p-0">
+                        <a
+                          href={`/admin/events/${ev.id}`}
+                          className={`block py-3 h-full w-full ${isFirst ? "pl-6 pr-4" : isLast ? "pl-4 pr-6" : "px-4"}`}
+                        >
+                          {content}
+                        </a>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
             {!table.getRowModel().rows.length && (
               <tr>
                 <td colSpan={columns.length} className="px-6 py-10 text-center text-sm text-muted-foreground">
@@ -231,9 +244,10 @@ export function EventsTable({ events }: Props) {
         {table.getRowModel().rows.map(row => {
           const ev = row.original;
           return (
-            <div
+            <a
               key={row.id}
-              className="rounded-xl border bg-card p-4 flex flex-col gap-4"
+              href={`/admin/events/${ev.id}`}
+              className="block rounded-xl border bg-card p-4 flex flex-col gap-4 hover:bg-muted/10 transition-colors text-card-foreground hover:no-underline"
             >
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <span
@@ -256,23 +270,17 @@ export function EventsTable({ events }: Props) {
                 {" · "}
                 {formatPacificTime(ev.starts_at)}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {ev.series_id && (
-                  <form method="post" action={`/api/events/${ev.id}/cancel`}>
+              {ev.series_id && (
+                <div className="flex flex-wrap gap-2">
+                  <form method="post" action={`/api/events/${ev.id}/cancel`} onClick={e => e.stopPropagation()}>
                     {ev.cancelled_at && <input type="hidden" name="undo" value="1" />}
                     <Button type="submit" variant="outline" size="sm">
                       {ev.cancelled_at ? "Restore" : "Cancel"}
                     </Button>
                   </form>
-                )}
-                <a href={`/admin/events/${ev.id}`} className="ml-auto">
-                  <Button variant="outline" size="sm">
-                    Manage
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
-                </a>
-              </div>
-            </div>
+                </div>
+              )}
+            </a>
           );
         })}
         {!table.getRowModel().rows.length && (
