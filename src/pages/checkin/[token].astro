@@ -7,10 +7,8 @@ import AstroCard from '../../components/AstroCard.astro';
 import AstroBadge from '../../components/AstroBadge.astro';
 import { RosterOnboardingCard } from '../../components/RosterOnboardingCard';
 import {
-  findExactNameMatch,
   findFuzzyMatches,
   getAllUnclaimedMembers,
-  linkRosterMember,
 } from '../../lib/onboarding';
 import { calculateDistance } from '../../lib/geofencing';
 
@@ -70,26 +68,7 @@ let { data: rosterMember } = await supabase
   .eq('claimed_user_id', session.user.id)
   .maybeSingle();
 
-if (!rosterMember) {
-  const userFullName =
-    session.user.user_metadata?.full_name ||
-    session.user.user_metadata?.name ||
-    '';
 
-  if (userFullName) {
-    const exactMatch = await findExactNameMatch(supabase, userFullName);
-    if (exactMatch) {
-      await linkRosterMember(supabase, session.user.id, exactMatch.id);
-      // Re-fetch so the rest of the page sees the linked member.
-      const { data: linked } = await supabase
-        .from('roster_members')
-        .select('id')
-        .eq('claimed_user_id', session.user.id)
-        .maybeSingle();
-      rosterMember = linked;
-    }
-  }
-}
 
 // Check if member dashboard is allowed and if user is admin
 const [settingRes, profileRes] = await Promise.all([

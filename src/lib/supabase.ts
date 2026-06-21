@@ -101,6 +101,7 @@ export class MockQueryBuilder {
   table: string;
   operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   opData: any = null;
+  upsertOptions: any = null;
   filters: { field: string; op: string; value: any }[] = [];
   isSingle = false;
   isMaybeSingle = false;
@@ -132,6 +133,7 @@ export class MockQueryBuilder {
   upsert(data: any, options?: any) {
     this.operation = 'upsert';
     this.opData = data;
+    this.upsertOptions = options;
     return this;
   }
 
@@ -281,7 +283,7 @@ export class MockQueryBuilder {
           (item: any) => item.event_id === row.event_id && item.roster_member_id === row.roster_member_id
         );
         if (existingIdx > -1) {
-          const shouldIgnoreDups = options?.ignoreDuplicates || false;
+          const shouldIgnoreDups = this.upsertOptions?.ignoreDuplicates || false;
           if (shouldIgnoreDups) {
             upserted.push(dataset[existingIdx]); // Don't overwrite — just acknowledge existing record
           } else {
