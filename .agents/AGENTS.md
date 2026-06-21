@@ -45,3 +45,8 @@ This project is indexed by GitNexus as **QRoll** (575 symbols, 794 relationships
 ## Project Notes
 - The Supabase database is a remote instance (configured via `.env`), not run locally via docker/cli.
 - For git operations, use the `michelle` remote (which is configured to push to `michelle-zhuang/QRoll.git`).
+
+## RTK - Rust Token Killer
+- **Always prefix shell commands with `rtk`** to minimize token consumption (e.g., `rtk git status`, `rtk npm run test`).
+- RTK filters and compresses command output before it reaches the LLM context, saving 60-90% tokens on common operations.
+
