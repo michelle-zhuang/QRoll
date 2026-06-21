@@ -83,7 +83,7 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
         .rob-tabs {
           display: flex;
           gap: 4px;
-          background: hsl(var(--muted) / 0.5);
+          background: color-mix(in srgb, var(--muted) 50%, transparent);
           border-radius: 10px;
           padding: 4px;
           margin-bottom: 18px;
@@ -97,16 +97,16 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
           font-size: 13px;
           font-weight: 500;
           cursor: pointer;
-          color: hsl(var(--muted-foreground));
+          color: var(--muted-foreground);
           transition: all 0.18s ease;
         }
         .rob-tab.active {
-          background: hsl(var(--card));
-          color: hsl(var(--foreground));
+          background: var(--card);
+          color: var(--foreground);
           box-shadow: 0 1px 4px rgba(0,0,0,0.08);
         }
         .rob-tab:hover:not(.active) {
-          color: hsl(var(--foreground));
+          color: var(--foreground);
         }
         .rob-match-list {
           display: flex;
@@ -119,53 +119,53 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
           justify-content: space-between;
           padding: 12px 14px;
           border-radius: 10px;
-          border: 1.5px solid hsl(var(--border));
+          border: 1.5px solid var(--border);
           cursor: pointer;
           transition: all 0.18s ease;
-          background: hsl(var(--card));
+          background: var(--card);
         }
         .rob-match-card:hover {
-          border-color: hsl(var(--primary) / 0.6);
-          background: hsl(var(--primary) / 0.04);
+          border-color: color-mix(in srgb, var(--primary) 60%, transparent);
+          background: color-mix(in srgb, var(--primary) 4%, transparent);
         }
         .rob-match-card.selected {
-          border-color: hsl(var(--primary));
-          background: hsl(var(--primary) / 0.08);
-          box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+          border-color: var(--primary);
+          background: color-mix(in srgb, var(--primary) 8%, transparent);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
         }
         .rob-match-name { font-weight: 600; font-size: 14px; }
-        .rob-match-email { font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 2px; }
+        .rob-match-email { font-size: 12px; color: var(--muted-foreground); margin-top: 2px; }
         .rob-check {
           width: 20px; height: 20px; border-radius: 50%;
-          border: 2px solid hsl(var(--border));
+          border: 2px solid var(--border);
           display: flex; align-items: center; justify-content: center;
           transition: all 0.18s;
           flex-shrink: 0;
         }
         .rob-match-card.selected .rob-check {
-          background: hsl(var(--primary));
-          border-color: hsl(var(--primary));
+          background: var(--primary);
+          border-color: var(--primary);
           color: white;
         }
         .rob-search {
           width: 100%;
           padding: 9px 13px;
           border-radius: 8px;
-          border: 1.5px solid hsl(var(--border));
-          background: hsl(var(--card));
+          border: 1.5px solid var(--border);
+          background: var(--card);
           font-size: 14px;
-          color: hsl(var(--foreground));
+          color: var(--foreground);
           margin-bottom: 10px;
           outline: none;
           transition: border-color 0.15s;
           box-sizing: border-box;
         }
-        .rob-search:focus { border-color: hsl(var(--primary) / 0.7); }
+        .rob-search:focus { border-color: color-mix(in srgb, var(--primary) 70%, transparent); }
         .rob-scroll {
           max-height: 220px;
           overflow-y: auto;
           border-radius: 8px;
-          border: 1px solid hsl(var(--border));
+          border: 1px solid var(--border);
         }
         .rob-item {
           display: flex;
@@ -174,46 +174,46 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
           padding: 10px 13px;
           cursor: pointer;
           transition: background 0.12s;
-          border-bottom: 1px solid hsl(var(--border) / 0.4);
+          border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
         }
         .rob-item:last-child { border-bottom: none; }
-        .rob-item:hover { background: hsl(var(--muted) / 0.4); }
-        .rob-item.selected { background: hsl(var(--primary) / 0.08); }
+        .rob-item:hover { background: color-mix(in srgb, var(--muted) 40%, transparent); }
+        .rob-item.selected { background: color-mix(in srgb, var(--primary) 8%, transparent); }
         .rob-item-radio {
           width: 16px; height: 16px; border-radius: 50%;
-          border: 2px solid hsl(var(--border));
+          border: 2px solid var(--border);
           flex-shrink: 0;
           transition: all 0.15s;
         }
         .rob-item.selected .rob-item-radio {
-          background: hsl(var(--primary));
-          border-color: hsl(var(--primary));
+          background: var(--primary);
+          border-color: var(--primary);
         }
-        .rob-empty { padding: 24px; text-align: center; color: hsl(var(--muted-foreground)); font-size: 13px; }
+        .rob-empty { padding: 24px; text-align: center; color: var(--muted-foreground); font-size: 13px; }
         .rob-field {
           display: flex;
           flex-direction: column;
           gap: 5px;
           margin-bottom: 12px;
         }
-        .rob-label { font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.05em; }
+        .rob-label { font-size: 12px; font-weight: 500; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; }
         .rob-input {
           width: 100%;
           padding: 9px 13px;
           border-radius: 8px;
-          border: 1.5px solid hsl(var(--border));
-          background: hsl(var(--card));
+          border: 1.5px solid var(--border);
+          background: var(--card);
           font-size: 14px;
-          color: hsl(var(--foreground));
+          color: var(--foreground);
           outline: none;
           transition: border-color 0.15s;
           box-sizing: border-box;
         }
-        .rob-input:focus { border-color: hsl(var(--primary) / 0.7); }
+        .rob-input:focus { border-color: color-mix(in srgb, var(--primary) 70%, transparent); }
         .rob-error {
-          background: hsl(var(--destructive) / 0.1);
-          border: 1px solid hsl(var(--destructive) / 0.3);
-          color: hsl(var(--destructive));
+          background: color-mix(in srgb, var(--destructive) 10%, transparent);
+          border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
+          color: var(--destructive);
           border-radius: 8px;
           padding: 10px 14px;
           font-size: 13px;
@@ -224,8 +224,8 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
           padding: 12px;
           border-radius: 9px;
           border: none;
-          background: hsl(var(--primary));
-          color: hsl(var(--primary-foreground));
+          background: var(--primary);
+          color: var(--primary-foreground);
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
@@ -305,7 +305,7 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
                   <div className="rob-item-radio" />
                   <div>
                     <div style={{ fontWeight: 500, fontSize: 14 }}>{m.full_name}</div>
-                    {m.email && <div style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>{m.email}</div>}
+                    {m.email && <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{m.email}</div>}
                   </div>
                 </div>
               ))
@@ -334,9 +334,31 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
 
       {error && <div className="rob-error">{error}</div>}
 
-      <button className="rob-btn" onClick={submit} disabled={loading}>
-        {loading ? 'Linking…' : 'Confirm & Continue'}
-      </button>
+      {(() => {
+        const isSubmitDisabled = loading || (tab !== 'new' && !selectedId);
+        const selectedMemberName = (() => {
+          if (tab === 'new') return '';
+          const list = tab === 'matches' ? fuzzyMatches : allUnclaimed;
+          return list.find(m => m.id === selectedId)?.full_name ?? '';
+        })();
+
+        let buttonText = 'Confirm & Continue';
+        if (loading) {
+          buttonText = tab === 'new' ? 'Creating…' : 'Linking…';
+        } else if (tab === 'new') {
+          buttonText = newName.trim() ? `Register as "${newName.trim()}"` : 'Enter name to register';
+        } else if (selectedMemberName) {
+          buttonText = `Confirm & Link as ${selectedMemberName}`;
+        } else {
+          buttonText = 'Select a name above to continue';
+        }
+
+        return (
+          <button className="rob-btn" onClick={submit} disabled={isSubmitDisabled}>
+            {buttonText}
+          </button>
+        );
+      })()}
     </div>
   );
 }
