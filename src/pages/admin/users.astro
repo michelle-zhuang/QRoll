@@ -1,0 +1,208 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { createSupabaseClient } from '../../lib/supabase';
+import AstroCard from '../../components/AstroCard.astro';
+import AstroButton from '../../components/AstroButton.astro';
+import AstroBadge from '../../components/AstroBadge.astro';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { ArrowLeft, Trash2, Shield, User, Send } from 'lucide-react';
+
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+const { data: profile } = await supabase.from('profiles').select('role, id').eq('id', session.user.id).single();
+if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+
+function toastRedirect(msg: string, type: 'success' | 'error' = 'success') {
+  return Astro.redirect(`/admin/users?toast=${encodeURIComponent(msg)}&toastType=${type}`);
+}
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('_action');
+
+  if (action === 'invite') {
+    const email = (formData.get('email') || '').toString().trim().toLowerCase();
+    if (!email) return toastRedirect('Email is required', 'error');
+    
+    // Check if user is already an admin
+    const { data: existingUser } = await supabase.from('profiles').select('role').eq('email', email).maybeSingle();
+    if (existingUser?.role === 'admin') {
+      return toastRedirect(`${email} is already an admin.`, 'error');
+    }
+
+    const res = await supabase.from('admin_invites').insert({ email });
+    return toastRedirect(res.error ? res.error.message : `Invited ${email} as admin`, res.error ? 'error' : 'success');
+  }
+
+  if (action === 'revoke_invite') {
+    const email = formData.get('email')?.toString();
+    if (email) {
+      const res = await supabase.from('admin_invites').delete().eq('email', email);
+      return toastRedirect(res.error ? res.error.message : 'Invite revoked', res.error ? 'error' : 'success');
+    }
+  }
+
+  if (action === 'toggle_role') {
+    const userId = formData.get('user_id')?.toString();
+    const newRole = formData.get('role')?.toString();
+    
+    if (userId === session.user.id) {
+      return toastRedirect('You cannot change your own role to avoid getting locked out.', 'error');
+    }
+
+    if (userId && (newRole === 'admin' || newRole === 'attendee')) {
+      const res = await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+      return toastRedirect(
+        res.error ? res.error.message : `Updated user role to ${newRole}`,
+        res.error ? 'error' : 'success'
+      );
+    }
+  }
+}
+
+// Fetch all profiles and pending admin invites
+const [{ data: profiles }, { data: invites }] = await Promise.all([
+  supabase.from('profiles').select('*').order('full_name', { ascending: true }),
+  supabase.from('admin_invites').select('*').order('email', { ascending: true })
+]);
+
+const adminCount = (profiles || []).filter(p => p.role === 'admin').length;
+const attendeeCount = (profiles || []).filter(p => p.role === 'attendee').length;
+const pendingCount = (invites || []).length;
+---
+
+<Layout title="Staff & Admins">
+  <main class="max-w-5xl mx-auto p-6 md:p-8">
+    <a href="/admin" class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 mb-6 text-sm transition-colors">
+      <ArrowLeft className="w-4 h-4" />
+      Back to events
+    </a>
+
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-semibold tracking-tight">Staff & Admins</h1>
+        <p class="text-muted-foreground mt-1 text-sm">Manage user roles and staff invitations for QRoll admin access.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <AstroBadge variant="success">{adminCount} admins</AstroBadge>
+        <AstroBadge variant="outline">{attendeeCount} attendees</AstroBadge>
+        {pendingCount > 0 && <AstroBadge variant="warning">{pendingCount} pending</AstroBadge>}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <!-- Invite Admin Form (1 column) -->
+      <div class="lg:col-span-1 space-y-6">
+        <AstroCard className="p-5">
+          <h2 class="text-lg font-semibold mb-2 flex items-center gap-2 text-[#2F2738]">
+            <Send className="w-4 h-4 text-[#6B6377]" />
+            Invite Admin
+          </h2>
+          <p class="text-xs text-[#6B6377] mb-4">
+            Enter an email address. When the user signs up or logs in, they will automatically be granted the Admin role.
+          </p>
+          <form method="post" class="space-y-4">
+            <input type="hidden" name="_action" value="invite" />
+            <div class="space-y-1.5">
+              <Label htmlFor="email" className="text-[#2F2738] font-medium">Email Address</Label>
+              <Input id="email" name="email" type="email" required placeholder="admin@example.com" className="rounded-xl border border-input focus:ring-2 focus:ring-[#E4C1F9]" />
+            </div>
+            <AstroButton type="submit" className="w-full bg-[#2F2738] hover:bg-[#6B6377] text-white rounded-xl">Send Invite</AstroButton>
+          </form>
+        </AstroCard>
+
+        <!-- Pending Admin Invites Card -->
+        <AstroCard className="p-5">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-[#2F2738]">
+            <Shield className="w-4 h-4 text-amber-500" />
+            Pending Invites
+          </h2>
+          {(!invites || invites.length === 0) ? (
+            <p class="text-xs text-[#6B6377] italic">No pending admin invites.</p>
+          ) : (
+            <div class="space-y-3">
+              {invites.map((invite: any) => (
+                <div class="flex items-center justify-between p-2.5 rounded-xl border border-border bg-[#FFFDF9] text-xs">
+                  <div class="min-w-0 pr-2">
+                    <p class="font-medium truncate text-[#2F2738]">{invite.email}</p>
+                    <p class="text-[10px] text-[#6B6377]">Invited {new Date(invite.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <form method="post">
+                    <input type="hidden" name="_action" value="revoke_invite" />
+                    <input type="hidden" name="email" value={invite.email} />
+                    <AstroButton type="submit" variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 rounded-lg">
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span class="sr-only">Revoke</span>
+                    </AstroButton>
+                  </form>
+                </div>
+              ))}
+            </div>
+          )}
+        </AstroCard>
+      </div>
+
+      <!-- Users & Staff List (2 columns) -->
+      <div class="lg:col-span-2">
+        <AstroCard className="overflow-hidden">
+          <div class="p-5 border-b border-border bg-card">
+            <h2 class="text-lg font-semibold flex items-center gap-2 text-[#2F2738]">
+              <User className="w-4 h-4 text-[#6B6377]" />
+              Users Directory
+            </h2>
+            <p class="text-xs text-[#6B6377] mt-0.5">Toggle admin permissions for registered users.</p>
+          </div>
+          <div class="divide-y divide-border">
+            {(!profiles || profiles.length === 0) ? (
+              <div class="p-6 text-center text-sm text-[#6B6377]">No registered users found.</div>
+            ) : (
+              profiles.map((p: any) => {
+                const isSelf = p.id === session.user.id;
+                return (
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 bg-card hover:bg-muted/10 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                      <div class="h-9 w-9 rounded-full bg-[#E4C1F9]/30 text-[#2F2738] flex items-center justify-center font-bold text-sm shrink-0">
+                        {(p.full_name || p.email)?.charAt(0).toUpperCase()}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <p class="text-sm font-semibold truncate text-[#2F2738]">{p.full_name || 'No Name'}</p>
+                          {isSelf && <AstroBadge variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-[#6B6377] text-[#6B6377]">You</AstroBadge>}
+                        </div>
+                        <p class="text-xs text-[#6B6377] truncate">{p.email}</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2.5 sm:self-center">
+                      <AstroBadge variant={p.role === 'admin' ? 'success' : 'secondary'}>
+                        {p.role === 'admin' ? 'Admin' : 'Attendee'}
+                      </AstroBadge>
+                      
+                      {!isSelf && (
+                        <form method="post" class="inline">
+                          <input type="hidden" name="_action" value="toggle_role" />
+                          <input type="hidden" name="user_id" value={p.id} />
+                          <input type="hidden" name="role" value={p.role === 'admin' ? 'attendee' : 'admin'} />
+                          <AstroButton 
+                            type="submit" 
+                            variant="outline" 
+                            size="sm"
+                            className="h-8 text-xs px-3 rounded-xl border-[#6B6377] text-[#2F2738] hover:bg-[#F5EFFA]"
+                          >
+                            {p.role === 'admin' ? 'Demote' : 'Promote'}
+                          </AstroButton>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </AstroCard>
+      </div>
+    </div>
+  </main>
+</Layout>

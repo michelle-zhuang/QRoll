@@ -89,6 +89,10 @@ const mockAppSettings = [
   { key: 'allow_member_dashboard', value: false }
 ];
 
+const mockAdminInvites: any[] = [
+  { email: 'pending_admin@example.com', created_at: new Date().toISOString() }
+];
+
 // Query Builder simulator class for mock actions
 class MockQueryBuilder {
   table: string;
@@ -195,6 +199,7 @@ class MockQueryBuilder {
     else if (this.table === 'events') dataset = mockEvents;
     else if (this.table === 'attendance') dataset = mockAttendance;
     else if (this.table === 'app_settings') dataset = mockAppSettings;
+    else if (this.table === 'admin_invites') dataset = mockAdminInvites;
 
     if (this.operation === 'select') {
       let result = [...dataset];
@@ -328,6 +333,9 @@ class MockQueryBuilder {
       } else if (this.table === 'app_settings') {
         mockAppSettings.length = 0;
         mockAppSettings.push(...remaining);
+      } else if (this.table === 'admin_invites') {
+        mockAdminInvites.length = 0;
+        mockAdminInvites.push(...remaining);
       }
 
       return { data: deleted, error: null };

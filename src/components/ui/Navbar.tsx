@@ -31,12 +31,18 @@ export const Navbar = ({ user, role, currentPath }: NavbarProps) => {
 
   const links: NavLink[] = [
     { href: "/dashboard", label: "Dashboard" },
-    ...(role === "admin" ? [{ href: "/admin", label: "Events" }] : []),
+    ...(role === "admin" ? [
+      { href: "/admin", label: "Events" },
+      { href: "/admin/roster", label: "Roster" },
+      { href: "/admin/users", label: "Staff & Admins" }
+    ] : [])
   ].filter(() => role !== "guest");
 
   const isActive = (href: string) =>
     href === "/dashboard"
       ? currentPath === href
+      : href === "/admin"
+      ? currentPath === "/admin" || currentPath === "/admin/"
       : currentPath.startsWith(href);
 
   const initials = (() => {
