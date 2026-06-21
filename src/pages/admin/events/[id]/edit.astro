@@ -15,7 +15,12 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+const [profileRes, eventRes] = await Promise.all([
+  supabase.from('profiles').select('role').eq('id', session.user.id).single(),
+  supabase.from('events').select('*').eq('id', id).single()
+]);
+
+const profile = profileRes.data;
 if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
 
 let errorMsg = '';
@@ -46,7 +51,7 @@ if (Astro.request.method === 'POST') {
   errorMsg = error.message;
 }
 
-const { data: event } = await supabase.from('events').select('*').eq('id', id).single();
+const event = eventRes.data;
 if (!event) return Astro.redirect('/admin');
 
 const formatDateTime = (dateString: string | null) => {

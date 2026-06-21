@@ -13,12 +13,16 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-let { data: profile } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('id', session.user.id)
-  .single();
+// Pull profile + all events + roster + attendance + settings in parallel to reduce sequential database round-trips!
+const [profileRes, eventsRes, rosterRes, attendanceRes, settingRes] = await Promise.all([
+  supabase.from('profiles').select('*').eq('id', session.user.id).single(),
+  supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').order('starts_at', { ascending: true }),
+  supabase.from('roster_members').select('id, full_name, claimed_user_id').order('full_name', { ascending: true }),
+  supabase.from('attendance').select('event_id, roster_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
+  supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle()
+]);
 
+let profile = profileRes.data;
 if (!profile) {
   const { data: newProfile, error } = await supabase
     .from('profiles')
@@ -34,14 +38,6 @@ if (!profile) {
 
 const isAdmin = profile?.role === 'admin';
 
-// Pull all events + roster + attendance + settings
-const [eventsRes, rosterRes, attendanceRes, settingRes] = await Promise.all([
-  supabase.from('events').select('id, title, starts_at').order('starts_at', { ascending: true }),
-  supabase.from('roster_members').select('id, full_name, claimed_user_id').order('full_name', { ascending: true }),
-  supabase.from('attendance').select('event_id, roster_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
-  supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle()
-]);
-
 const events = eventsRes.data || [];
 const roster = rosterRes.data || [];
 const attendance = attendanceRes.data || [];
@@ -49,20 +45,23 @@ const setting = settingRes?.data;
 const allowMemberDashboard = setting ? (setting.value === true || setting.value === 'true') : false;
 const isRestricted = !isAdmin && !allowMemberDashboard;
 
+
+
 const linkedMember = roster.find(m => m.claimed_user_id === session.user.id);
 const displayName = linkedMember?.full_name || profile?.full_name || profile?.email || session.user.email;
 
 // Map event_id -> ISO date (YYYY-MM-DD) using starts_at in America/Los_Angeles timezone
 const dateByEvent: Record<string, string> = {};
 const datesSet = new Set<string>();
+const formatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Los_Angeles',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
 events.forEach(e => {
   const d = new Date(e.starts_at);
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
   const parts = formatter.formatToParts(d);
   const year = parts.find(p => p.type === 'year')!.value;
   const month = parts.find(p => p.type === 'month')!.value;
@@ -74,28 +73,59 @@ events.forEach(e => {
 });
 const dates = [...datesSet].sort();
 
-// Build matrix data
-const recordsByMember: Record<string, AttendanceRecord[]> = {};
+const nowStr = new Date().toISOString();
+
+// Group existing attendance by roster_member_id and event_id for fast lookup
+const attendanceMap = new Map<string, typeof attendance[0]>();
 attendance.forEach(a => {
-  if (!a.roster_member_id) return;
-  const date = dateByEvent[a.event_id];
-  if (!date) return;
-  const status = (a.status === 'on_time' ? 'present' : a.status) as AttendanceStatus;
-  if (!recordsByMember[a.roster_member_id]) recordsByMember[a.roster_member_id] = [];
-  recordsByMember[a.roster_member_id].push({ 
-    date, 
-    status, 
-    reason: a.note ?? null,
-    verification_status: (a as any).verification_status,
-    verification_method: (a as any).verification_method,
-    calculated_distance_meters: (a as any).calculated_distance_meters,
-    checked_in_at: a.checked_in_at
-  });
+  if (a.roster_member_id) {
+    attendanceMap.set(`${a.roster_member_id}:${a.event_id}`, a);
+  }
 });
 
 const filteredRoster = isAdmin
   ? roster
   : roster.filter(m => m.claimed_user_id === session.user.id);
+
+// Build matrix data, generating 'absent' in-memory for missing records of closed events
+const recordsByMember: Record<string, AttendanceRecord[]> = {};
+filteredRoster.forEach(m => {
+  recordsByMember[m.id] = [];
+  events.forEach(e => {
+    const date = dateByEvent[e.id];
+    if (!date) return;
+
+    const key = `${m.id}:${e.id}`;
+    const a = attendanceMap.get(key);
+
+    if (a) {
+      const status = (a.status === 'on_time' ? 'present' : a.status) as AttendanceStatus;
+      recordsByMember[m.id].push({
+        date,
+        status,
+        reason: a.note ?? null,
+        verification_status: (a as any).verification_status,
+        verification_method: (a as any).verification_method,
+        calculated_distance_meters: (a as any).calculated_distance_meters,
+        checked_in_at: a.checked_in_at
+      });
+    } else {
+      // If event checkin has closed, default to 'absent' in-memory fallback
+      const isClosed = e.checkin_closes_at && e.checkin_closes_at < nowStr && !e.cancelled_at;
+      if (isClosed) {
+        recordsByMember[m.id].push({
+          date,
+          status: 'absent',
+          reason: null,
+          verification_status: null,
+          verification_method: null,
+          calculated_distance_meters: null,
+          checked_in_at: null
+        });
+      }
+    }
+  });
+});
 
 const data: AttendanceData = {
   dates,

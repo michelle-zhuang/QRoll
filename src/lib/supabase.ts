@@ -37,6 +37,7 @@ const mockEvents = [
     id: 'event-id-1',
     title: 'Beginner Hip Hop Class',
     description: 'Weekly hip hop class for beginners.',
+    cancelled_at: null,
     starts_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     checkin_opens_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
     late_after_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000).toISOString(),
@@ -49,6 +50,7 @@ const mockEvents = [
     id: 'event-id-2',
     title: 'Intermediate Contemporary Dance',
     description: 'Contemporary technique session.',
+    cancelled_at: null,
     starts_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     checkin_opens_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
     late_after_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000).toISOString(),
@@ -60,6 +62,7 @@ const mockEvents = [
   {
     id: 'event-id-3',
     title: 'Advanced Ballet Workshop',
+    cancelled_at: null,
     description: 'Intense ballet session.',
     starts_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     checkin_opens_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
@@ -94,7 +97,7 @@ const mockAdminInvites: any[] = [
 ];
 
 // Query Builder simulator class for mock actions
-class MockQueryBuilder {
+export class MockQueryBuilder {
   table: string;
   operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   opData: any = null;
@@ -167,6 +170,11 @@ class MockQueryBuilder {
     return this;
   }
 
+  in(field: string, values: any[]) {
+    this.filters.push({ field, op: 'in', value: values });
+    return this;
+  }
+
   limit(n: number) {
     this.limitCount = n;
     return this;
@@ -207,7 +215,11 @@ class MockQueryBuilder {
         if (filter.op === 'eq') {
           result = result.filter(item => item[filter.field] === filter.value);
         } else if (filter.op === 'is') {
-          result = result.filter(item => item[filter.field] === filter.value);
+          if (filter.value === null) {
+            result = result.filter(item => item[filter.field] === null || item[filter.field] === undefined);
+          } else {
+            result = result.filter(item => item[filter.field] === filter.value);
+          }
         } else if (filter.op === 'lte') {
           result = result.filter(item => item[filter.field] <= filter.value);
         } else if (filter.op === 'gte') {
@@ -216,6 +228,9 @@ class MockQueryBuilder {
           result = result.filter(item => item[filter.field] > filter.value);
         } else if (filter.op === 'lt') {
           result = result.filter(item => item[filter.field] < filter.value);
+        } else if (filter.op === 'in') {
+          const vals = Array.isArray(filter.value) ? filter.value : [filter.value];
+          result = result.filter(item => vals.includes(item[filter.field]));
         }
       }
       if (this.orderField) {
@@ -263,15 +278,20 @@ class MockQueryBuilder {
       const upserted: any[] = [];
       for (const row of rows) {
         const existingIdx = dataset.findIndex(
-          item => item.event_id === row.event_id && item.roster_member_id === row.roster_member_id
+          (item: any) => item.event_id === row.event_id && item.roster_member_id === row.roster_member_id
         );
         if (existingIdx > -1) {
-          dataset[existingIdx] = { ...dataset[existingIdx], ...row };
-          upserted.push(dataset[existingIdx]);
+          const shouldIgnoreDups = options?.ignoreDuplicates || false;
+          if (shouldIgnoreDups) {
+            upserted.push(dataset[existingIdx]); // Don't overwrite — just acknowledge existing record
+          } else {
+            dataset[existingIdx] = { ...dataset[existingIdx], ...row };
+            upserted.push(dataset[existingIdx]);
+          }
         } else {
           const newRow = { 
             id: row.id || crypto.randomUUID?.() || Math.random().toString(36).substr(2, 9),
-            status: 'present',
+            status: row.status || 'present',
             created_at: new Date().toISOString(),
             ...row 
           };
@@ -289,11 +309,12 @@ class MockQueryBuilder {
         for (const filter of this.filters) {
           const val = dataset[i][filter.field];
           if (filter.op === 'eq' && val !== filter.value) match = false;
-          else if (filter.op === 'is' && val !== filter.value) match = false;
+          else if (filter.op === 'is' && (filter.value === null ? (val !== null && val !== undefined) : val !== filter.value)) match = false;
           else if (filter.op === 'lte' && !(val <= filter.value)) match = false;
           else if (filter.op === 'gte' && !(val >= filter.value)) match = false;
           else if (filter.op === 'gt' && !(val > filter.value)) match = false;
           else if (filter.op === 'lt' && !(val < filter.value)) match = false;
+          else if (filter.op === 'in' && !filter.value.includes(val)) match = false;
         }
         if (match) {
           dataset[i] = { ...dataset[i], ...this.opData };
@@ -398,4 +419,89 @@ export function createSupabaseClient(cookies: AstroCookies) {
   }
 
   return client;
+}
+
+export async function markAbsentForClosedEvents(
+  supabase: any,
+  options?: {
+    roster?: { id: string }[];
+    closedEvents?: { id: string; checkin_closes_at: string; cancelled_at: string | null }[];
+  }
+) {
+  const nowIso = new Date().toISOString();
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  
+  let closedEvents = options?.closedEvents
+    ? options.closedEvents.filter((e: any) => {
+        return e.checkin_closes_at &&
+               e.checkin_closes_at < nowIso &&
+               e.checkin_closes_at > thirtyDaysAgo &&
+               !e.cancelled_at;
+      })
+    : undefined;
+  let roster = options?.roster;
+  
+  if (!closedEvents || !roster) {
+    const [eventsRes, rosterRes] = await Promise.all([
+      closedEvents ? null : supabase
+        .from('events')
+        .select('id')
+        .is('cancelled_at', null)
+        .lt('checkin_closes_at', nowIso)
+        .gt('checkin_closes_at', thirtyDaysAgo),
+      roster ? null : supabase
+        .from('roster_members')
+        .select('id')
+    ]);
+    
+    if (eventsRes) {
+      closedEvents = eventsRes.data || [];
+    }
+    if (rosterRes) {
+      roster = rosterRes.data || [];
+    }
+  }
+
+  if (!closedEvents || closedEvents.length === 0 || !roster || roster.length === 0) return;
+
+  const closedEventIds = closedEvents.map((e: any) => e.id);
+
+  // 3. Get all existing attendance records for these closed events
+  const { data: existingAttendance } = await supabase
+    .from('attendance')
+    .select('event_id, roster_member_id')
+    .in('event_id', closedEventIds);
+
+  if (!existingAttendance) return;
+
+  // Create a lookup: "event_id:roster_member_id"
+  const existingSet = new Set(
+    existingAttendance.map((a: any) => `${a.event_id}:${a.roster_member_id}`)
+  );
+
+  // 4. Find which combinations of (closedEvent, rosterMember) are missing
+  const missingInserts: { event_id: string; roster_member_id: string; status: string }[] = [];
+  for (const eventId of closedEventIds) {
+    for (const member of roster) {
+      if (!existingSet.has(`${eventId}:${member.id}`)) {
+        missingInserts.push({
+          event_id: eventId,
+          roster_member_id: member.id,
+          status: 'absent'
+        });
+      }
+    }
+  }
+
+  // 5. Bulk upsert the missing 'absent' records to avoid unique constraint violations
+  //    and silently handle concurrent inserts (e.g., from multiple page loads or races)
+  if (missingInserts.length > 0) {
+    try {
+      await supabase
+        .from('attendance')
+        .upsert(missingInserts, { onConflict: 'event_id,roster_member_id', ignoreDuplicates: true });
+    } catch (err) {
+      console.error('[QRoll] Failed to mark absent for closed events:', err);
+    }
+  }
 }

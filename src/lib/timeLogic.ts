@@ -21,12 +21,22 @@ export function fromPacificTime(date: Date | string): Date {
   return fromZonedTime(date, PACIFIC_TIMEZONE);
 }
 
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
 export function formatInPacific(date: Date | string, options: Intl.DateTimeFormatOptions): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("en-US", {
-    ...options,
-    timeZone: PACIFIC_TIMEZONE,
-  }).format(d);
+  const cacheKey = JSON.stringify(options);
+  
+  let formatter = formatterCache.get(cacheKey);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      ...options,
+      timeZone: PACIFIC_TIMEZONE,
+    });
+    formatterCache.set(cacheKey, formatter);
+  }
+  
+  return formatter.format(d);
 }
 
 export function formatPacificDate(date: Date | string): string {

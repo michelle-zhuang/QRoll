@@ -21,7 +21,15 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+// Fetch profile + event + attendance + roster in parallel to minimize sequential database calls!
+const [profileRes, eventRes, attendanceRes, rosterRes] = await Promise.all([
+  supabase.from('profiles').select('role').eq('id', session.user.id).single(),
+  supabase.from('events').select('*').eq('id', id).single(),
+  supabase.from('attendance').select('*, profiles(full_name, email), roster_members(full_name, email)').eq('event_id', id),
+  supabase.from('roster_members').select('*')
+]);
+
+const profile = profileRes.data;
 if (!profile || profile.role !== 'admin') {
   return Astro.redirect('/dashboard');
 }
@@ -34,16 +42,42 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const { data: event } = await supabase.from('events').select('*').eq('id', id).single();
+const event = eventRes.data;
 if (!event) return Astro.redirect('/admin');
 
-const checkinUrl = event.qr_token ? `${Astro.url.origin}/checkin/${event.qr_token}` : null;
+const roster = rosterRes.data || [];
+const rawAttendance = attendanceRes.data || [];
 
-const { data: attendance } = await supabase
-  .from('attendance')
-  .select('*, profiles(full_name, email), roster_members(full_name, email)')
-  .eq('event_id', id)
-  .order('checked_in_at', { ascending: false });
+const isClosed = event.checkin_closes_at && new Date(event.checkin_closes_at) < new Date() && !event.cancelled_at;
+const attendedRosterIds = new Set(rawAttendance.map(a => a.roster_member_id));
+
+const attendance = [...rawAttendance];
+if (isClosed) {
+  roster.forEach(m => {
+    if (!attendedRosterIds.has(m.id)) {
+      attendance.push({
+        id: `mock-absent-${m.id}`,
+        event_id: id,
+        roster_member_id: m.id,
+        status: 'absent',
+        note: null,
+        checked_in_at: null,
+        roster_members: m,
+        profiles: null
+      } as any);
+    }
+  });
+}
+
+// Sort: present/late first (descending by checked_in_at), then absent
+attendance.sort((a, b) => {
+  if (a.status === 'absent' && b.status !== 'absent') return 1;
+  if (a.status !== 'absent' && b.status === 'absent') return -1;
+  if (a.checked_in_at && b.checked_in_at) {
+    return new Date(b.checked_in_at).getTime() - new Date(a.checked_in_at).getTime();
+  }
+  return 0;
+});
 
 const lateAfter = event.late_after_at ? new Date(event.late_after_at) : null;
 const formatLate = (min: number) => {
@@ -58,6 +92,8 @@ const lateMinutesFor = (checkedAt: string) => {
   const diff = new Date(checkedAt).getTime() - lateAfter.getTime();
   return Math.max(0, Math.round(diff / 60000));
 };
+
+const checkinUrl = event.qr_token ? `${Astro.url.origin}/checkin/${event.qr_token}` : null;
 ---
 
 <Layout title={`${event.title} - Details`}>

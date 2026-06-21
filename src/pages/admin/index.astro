@@ -8,7 +8,13 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-const { data: profile } = await supabase.from('profiles').select('role, full_name, email').eq('id', session.user.id).single();
+const [profileRes, settingRes, eventsRes] = await Promise.all([
+  supabase.from('profiles').select('role, full_name, email').eq('id', session.user.id).single(),
+  supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle(),
+  supabase.from('events').select('*').order('created_at', { ascending: false })
+]);
+
+const profile = profileRes.data;
 if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
 
 if (Astro.request.method === 'POST') {
@@ -19,16 +25,13 @@ if (Astro.request.method === 'POST') {
     key: 'allow_member_dashboard',
     value: allowMemberDashboard
   });
+  return Astro.redirect('/admin');
 }
 
-const { data: setting } = await supabase
-  .from('app_settings')
-  .select('value')
-  .eq('key', 'allow_member_dashboard')
-  .maybeSingle();
+const setting = settingRes?.data;
 const allowMemberDashboard = setting ? (setting.value === true || setting.value === 'true') : false;
 
-const { data: events } = await supabase.from('events').select('*').order('created_at', { ascending: false });
+const events = eventsRes.data || [];
 ---
 <Layout title="Admin Dashboard">
   <main class="max-w-5xl mx-auto p-6 md:p-8">

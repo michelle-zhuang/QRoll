@@ -12,7 +12,13 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-const { data: profile } = await supabase.from('profiles').select('role, id').eq('id', session.user.id).single();
+const [profileRes, profilesRes, invitesRes] = await Promise.all([
+  supabase.from('profiles').select('role, id').eq('id', session.user.id).single(),
+  supabase.from('profiles').select('*').order('full_name', { ascending: true }),
+  supabase.from('admin_invites').select('*').order('email', { ascending: true })
+]);
+
+const profile = profileRes.data;
 if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
 
 function toastRedirect(msg: string, type: 'success' | 'error' = 'success') {
@@ -74,11 +80,8 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-// Fetch all profiles and pending admin invites
-const [{ data: profiles }, { data: invites }] = await Promise.all([
-  supabase.from('profiles').select('*').order('full_name', { ascending: true }),
-  supabase.from('admin_invites').select('*').order('email', { ascending: true })
-]);
+const profiles = profilesRes.data || [];
+const invites = invitesRes.data || [];
 
 const adminCount = (profiles || []).filter(p => p.role === 'admin').length;
 const attendeeCount = (profiles || []).filter(p => p.role === 'attendee').length;

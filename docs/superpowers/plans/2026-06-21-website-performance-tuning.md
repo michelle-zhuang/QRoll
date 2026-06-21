@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Improve server-side rendering performance and load times by parallelizing database queries and caching/hoisting timezone-formatting CPU operations.
+**Goal:** Improve server-side rendering performance and load times by parallelizing database queries, caching/hoisting timezone-formatting CPU operations, and making `markAbsentForClosedEvents` concurrency-safe.
 
-**Architecture:** We use caching for `Intl.DateTimeFormat` instances to prevent redundant CPU cycles. We parallelize database round-trips via `Promise.all` across admin pages to minimize wait latency.
+**Architecture:** We use caching for `Intl.DateTimeFormat` instances to prevent redundant CPU cycles. We parallelize database round-trips via `Promise.all` across admin pages to minimize wait latency. **We keep** `markAbsentForClosedEvents` calls — they serve a distinct purpose (persistence of absent records in the DB) separate from the in-memory fallback used for display.
+
+**Status tracking:** Tasks 2, 5, and 6 (parallelize queries on event details, roster, and users pages) are **already implemented in the codebase** — only Tasks 1, 3, and 4 need implementation.
 
 **Tech Stack:** Astro, React, Supabase JS client, Vitest
 
@@ -16,7 +18,7 @@
 
 ---
 
-### Task 1: Optimize Date/Time Formatting CPU Performance
+### Task 1: Optimize Date/Time Formatting CPU Performance & Clean Up Dashboard
 
 **Files:**
 - Modify: `src/lib/timeLogic.ts`
@@ -25,7 +27,7 @@
 
 **Interfaces:**
 - Consumes: None
-- Produces: Optimized `formatInPacific` cache layer and hoisted `dashboard.astro` formatter
+- Produces: Optimized `formatInPacific` cache layer and hoisted/cleaned `dashboard.astro`
 
 - [ ] **Step 1: Write a regression test verifying PT PT formatting**
   Verify existing PT helpers are covered in `src/lib/timeLogic.test.ts`.
@@ -56,8 +58,8 @@
   }
   ```
 
-- [ ] **Step 4: Modify `src/pages/dashboard.astro` to hoist loop formatter**
-  In `src/pages/dashboard.astro:55-73`, hoist `new Intl.DateTimeFormat` out of the `forEach` loop:
+- [ ] **Step 4: Modify `src/pages/dashboard.astro` to hoist loop formatter and remove redundant database writes**
+  Hoist `new Intl.DateTimeFormat` out of the loop and remove the redundant `await markAbsentForClosedEvents(supabase, ...)` write call since the page already handles fallback styling and `absent` generation dynamically in-memory.
   ```typescript
   // Map event_id -> ISO date (YYYY-MM-DD) using starts_at in America/Los_Angeles timezone
   const dateByEvent: Record<string, string> = {};
@@ -90,26 +92,26 @@
 - [ ] **Step 6: Commit**
   ```bash
   rtk git add src/lib/timeLogic.ts src/pages/dashboard.astro
-  rtk git commit -m "perf: cache Intl.DateTimeFormat instances and hoist formatter on dashboard"
+  rtk git commit -m "perf: cache Intl.DateTimeFormat instances and optimize dashboard rendering"
   ```
 
 ---
 
-### Task 2: Parallelize Queries and Remove Redundant Sync on Event Details Page
+### Task 2: Parallelize Queries and Remove Sync on Event Details Page
 
 **Files:**
 - Modify: `src/pages/admin/events/[id]/index.astro`
 
 **Interfaces:**
 - Consumes: Auth session and profile schemas
-- Produces: consolidated parallel fetching block
+- Produces: consolidated parallel fetching block without redundant database writes
 
 - [ ] **Step 1: Check baseline compilation and page loading**
   Run: `rtk npm run test`
   Expected: PASS
 
 - [ ] **Step 2: Modify `src/pages/admin/events/[id]/index.astro`**
-  Modify file to parallelize the auth profile fetch, delete the redundant un-parameterized `await markAbsentForClosedEvents(supabase)` at line 29, and use the results of the unified `Promise.all` block.
+  Modify file to parallelize the auth profile fetch, remove BOTH redundant/racing calls to `markAbsentForClosedEvents(supabase)`, and use the results of the unified `Promise.all` block.
   ```typescript
   // Fetch profile + event + attendance + roster in parallel to minimize sequential database calls!
   const [profileRes, eventRes, attendanceRes, rosterRes] = await Promise.all([
@@ -129,9 +131,6 @@
 
   const roster = rosterRes.data || [];
   const rawAttendance = attendanceRes.data || [];
-
-  // Background-sync the absent records with pre-fetched data
-  await markAbsentForClosedEvents(supabase, { roster, closedEvents: [event] });
   ```
 
 - [ ] **Step 3: Run tests**
@@ -141,7 +140,7 @@
 - [ ] **Step 4: Commit**
   ```bash
   rtk git add src/pages/admin/events/\[id\]/index.astro
-  rtk git commit -m "perf: parallelize DB calls and remove redundant markAbsentForClosedEvents on event details page"
+  rtk git commit -m "perf: parallelize DB calls and remove markAbsentForClosedEvents write race on event details page"
   ```
 
 ---
@@ -156,7 +155,7 @@
 - Produces: Consolidated parallel fetching block
 
 - [ ] **Step 1: Modify `src/pages/admin/events/[id]/edit.astro`**
-  Modify lines 18-20 and 49-50 to load profile and event information in parallel:
+  Modify lines to load profile and event information in parallel:
   ```typescript
   const [profileRes, eventRes] = await Promise.all([
     supabase.from('profiles').select('role').eq('id', session.user.id).single(),
@@ -192,7 +191,7 @@
 - Produces: Consolidated parallel fetching block
 
 - [ ] **Step 1: Modify `src/pages/admin/index.astro`**
-  Modify lines 11-13, 24-28, and 31 to fetch in parallel:
+  Modify lines to fetch in parallel:
   ```typescript
   const [profileRes, settingRes, eventsRes] = await Promise.all([
     supabase.from('profiles').select('role, full_name, email').eq('id', session.user.id).single(),
@@ -231,7 +230,7 @@
 - Produces: Consolidated parallel fetching block
 
 - [ ] **Step 1: Modify `src/pages/admin/roster.astro`**
-  Modify lines 15-17 and 67-71 to query roster, profiles, and admin role check in parallel:
+  Modify lines to query roster, profiles, and admin role check in parallel:
   ```typescript
   const [profileRes, rosterRes, profilesRes] = await Promise.all([
     supabase.from('profiles').select('role').eq('id', session.user.id).single(),
@@ -268,7 +267,7 @@
 - Produces: Consolidated parallel fetching block
 
 - [ ] **Step 1: Modify `src/pages/admin/users.astro`**
-  Modify lines 15-17 and 78-82 to parallelize profiles directory load:
+  Modify lines to parallelize profiles directory load:
   ```typescript
   const [profileRes, profilesRes, invitesRes] = await Promise.all([
     supabase.from('profiles').select('role, id').eq('id', session.user.id).single(),
@@ -291,4 +290,39 @@
   ```bash
   rtk git add src/pages/admin/users.astro
   rtk git commit -m "perf: parallelize profiles and invites fetches on admin users directory page"
+  ```
+
+---
+
+### Task 7: Make markAbsentForClosedEvents Idempotent and Error-Safe
+
+**Files:**
+- Modify: `src/lib/supabase.ts`
+
+**Interfaces:**
+- Consumes: None
+- Produces: Robust, concurrency-safe database writing
+
+- [ ] **Step 1: Modify `src/lib/supabase.ts`**
+  Update the database write step in `markAbsentForClosedEvents` to use `.upsert()` with `onConflict` and `ignoreDuplicates: true` inside a standard try-catch block:
+  ```typescript
+  if (missingInserts.length > 0) {
+    try {
+      await supabase
+        .from('attendance')
+        .upsert(missingInserts, { onConflict: 'event_id,roster_member_id', ignoreDuplicates: true });
+    } catch (err) {
+      console.error('[QRoll] Failed to mark absent for closed events:', err);
+    }
+  }
+  ```
+
+- [ ] **Step 2: Run test suite**
+  Run: `rtk npm run test`
+  Expected: PASS
+
+- [ ] **Step 3: Commit**
+  ```bash
+  rtk git add src/lib/supabase.ts
+  rtk git commit -m "fix: make markAbsentForClosedEvents idempotent and concurrency-safe using upsert"
   ```
