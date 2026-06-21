@@ -27,10 +27,14 @@ if (Astro.request.method === 'POST') {
     const email = (formData.get('email') || '').toString().trim().toLowerCase();
     if (!email) return toastRedirect('Email is required', 'error');
     
-    // Check if user is already an admin
-    const { data: existingUser } = await supabase.from('profiles').select('role').eq('email', email).maybeSingle();
-    if (existingUser?.role === 'admin') {
-      return toastRedirect(`${email} is already an admin.`, 'error');
+    // Check if user already has a profile
+    const { data: existingUser } = await supabase.from('profiles').select('role, id').eq('email', email).maybeSingle();
+    if (existingUser) {
+      if (existingUser.role === 'admin') {
+        return toastRedirect(`${email} is already an admin.`, 'error');
+      }
+      const { error } = await supabase.from('profiles').update({ role: 'admin' }).eq('id', existingUser.id);
+      return toastRedirect(error ? error.message : `Promoted existing user ${email} to admin`, error ? 'error' : 'success');
     }
 
     const res = await supabase.from('admin_invites').insert({ email });

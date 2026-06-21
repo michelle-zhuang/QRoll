@@ -347,7 +347,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                     "flex flex-col items-center justify-center py-2.5 rounded-2xl border text-xs font-semibold cursor-pointer transition-all",
                     draftStatus === s 
                       ? s === "present" ? "border-emerald-500 bg-[#D0F4DE] text-[#2F2738]"
-                        : s === "late" ? "border-amber-500 bg-amber-50 text-amber-700"
+                        : s === "late" ? "border-amber-500 bg-amber-50 text-amber-950"
                         : s === "absent" ? "border-rose-500 bg-rose-50 text-rose-700"
                         : "border-[#2F2738] bg-[#F5EFFA] text-[#2F2738]"
                       : "border-border bg-card text-[#6B6377] hover:bg-muted/40"

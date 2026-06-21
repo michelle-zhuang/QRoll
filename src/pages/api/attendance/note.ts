@@ -52,7 +52,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .eq('roster_member_id', roster_member_id)
     .maybeSingle();
 
-  if (status === 'none') {
+  let targetStatus = status;
+  if (status === 'none' && noteValue) {
+    targetStatus = 'absent';
+  }
+
+  if (targetStatus === 'none') {
     if (existing) {
       const { error } = await supabase
         .from('attendance')
@@ -61,23 +66,24 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       if (error) return new Response(error.message, { status: 500 });
     }
   } else {
-    const targetStatus = status || 'present';
     if (existing) {
+      const updatePayload: any = { note: noteValue || null };
+      if (targetStatus && targetStatus !== 'none') {
+        updatePayload.status = targetStatus;
+      }
       const { error } = await supabase
         .from('attendance')
-        .update({ 
-          note: noteValue || null,
-          status: targetStatus
-        })
+        .update(updatePayload)
         .eq('id', existing.id);
       if (error) return new Response(error.message, { status: 500 });
     } else {
+      const insertStatus = (targetStatus && targetStatus !== 'none') ? targetStatus : 'present';
       const { error } = await supabase
         .from('attendance')
         .insert({
           event_id: eventId,
           roster_member_id,
-          status: targetStatus,
+          status: insertStatus,
           note: noteValue || null,
           checked_in_at: dayStart,
         });
