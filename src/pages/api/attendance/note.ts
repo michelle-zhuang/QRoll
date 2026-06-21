@@ -27,6 +27,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response('Missing roster_member_id or date', { status: 400 });
   }
 
+  // M1: Validate status value
+  const VALID_STATUSES = new Set(['present', 'late', 'absent', 'none']);
+  if (status && !VALID_STATUSES.has(status)) {
+    return new Response('Invalid status value', { status: 400 });
+  }
+
   const TZ = 'America/Los_Angeles';
   const dayStart = fromZonedTime(`${date}T00:00:00`, TZ).toISOString();
   const dayEnd = fromZonedTime(`${date}T23:59:59.999`, TZ).toISOString();
@@ -77,7 +83,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         .eq('id', existing.id);
       if (error) return new Response(error.message, { status: 500 });
     } else {
-      const insertStatus = (targetStatus && targetStatus !== 'none') ? targetStatus : 'present';
+      const insertStatus = (targetStatus && targetStatus !== 'none') ? targetStatus : 'absent';
       const { error } = await supabase
         .from('attendance')
         .insert({

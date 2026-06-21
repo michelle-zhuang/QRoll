@@ -68,7 +68,8 @@ const statusDotClass = (s: AttendanceStatus | null | undefined) => {
 };
 
 export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Props) => {
-  const { dates, attendees } = data;
+  const [localData, setLocalData] = useState(data);
+  const { dates, attendees } = localData;
   const usingRemote = !!noteApiUrl;
 
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -164,6 +165,37 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
           const text = await res.text();
           throw new Error(text || "Failed to save note");
         }
+
+        // B1 fix: update local data so cells re-render immediately
+        setLocalData(prev => ({
+          ...prev,
+          attendees: prev.attendees.map(a => {
+            if (a.name !== name) return a;
+            if (selectedStatus === 'none') {
+              // API deletes the row — remove the record locally
+              return { ...a, records: a.records.filter(r => r.date !== date) };
+            }
+            const existing = a.records.find(r => r.date === date);
+            if (existing) {
+              return {
+                ...a,
+                records: a.records.map(r =>
+                  r.date === date
+                    ? { ...r, status: selectedStatus as AttendanceStatus, reason: trimmed || null }
+                    : r
+                ),
+              };
+            }
+            // No prior record — insert a new one locally
+            const newStatus = (selectedStatus && selectedStatus !== 'none')
+              ? selectedStatus as AttendanceStatus
+              : 'absent' as AttendanceStatus;
+            return {
+              ...a,
+              records: [...a.records, { date, status: newStatus, reason: trimmed || null }],
+            };
+          }),
+        }));
       } finally {
         setSaving(false);
       }
@@ -434,7 +466,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                   }}
                   className="cursor-pointer h-9 px-5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50"
                 >
-                  {saving ? "Saving..." : "Save note"}
+                  {saving ? "Saving..." : "Save changes"}
                 </button>
               </div>
             </div>

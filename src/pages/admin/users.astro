@@ -37,6 +37,13 @@ if (Astro.request.method === 'POST') {
       return toastRedirect(error ? error.message : `Promoted existing user ${email} to admin`, error ? 'error' : 'success');
     }
 
+    // M3: Guard against duplicate pending invites
+    const { data: existingInvite } = await supabase
+      .from('admin_invites').select('email').eq('email', email).maybeSingle();
+    if (existingInvite) {
+      return toastRedirect(`${email} already has a pending invite.`, 'error');
+    }
+
     const res = await supabase.from('admin_invites').insert({ email });
     return toastRedirect(res.error ? res.error.message : `Invited ${email} as admin`, res.error ? 'error' : 'success');
   }
