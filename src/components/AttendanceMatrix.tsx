@@ -74,6 +74,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ name: string; date: string } | null>(null);
   const [draft, setDraft] = useState("");
+  const [draftStatus, setDraftStatus] = useState<string>("none");
   const [saving, setSaving] = useState(false);
   const [hover, setHover] = useState<Hover | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -141,7 +142,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
   const hasOverride = (name: string, date: string) =>
     notes[noteKey(name, date)] !== undefined;
 
-  const persistNote = async (name: string, date: string, value: string) => {
+  const persistNote = async (name: string, date: string, value: string, selectedStatus: string) => {
     const k = noteKey(name, date);
     const trimmed = value.trim();
     const next = { ...notes };
@@ -157,7 +158,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
         const res = await fetch(noteApiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roster_member_id: memberId, date, note: trimmed }),
+          body: JSON.stringify({ roster_member_id: memberId, date, note: trimmed, status: selectedStatus }),
         });
         if (!res.ok) {
           const text = await res.text();
@@ -212,6 +213,8 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
     setHover(null);
     setEditing({ name, date });
     setDraft(getNote(name, date));
+    const rec = recordIndex[name]?.[date];
+    setDraftStatus(rec?.status || "none");
   };
 
   const onCellEnter = (name: string, date: string, e: React.MouseEvent) => {
@@ -332,6 +335,36 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
             </div>
 
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+              Status Override
+            </label>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {["present", "late", "absent", "none"].map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setDraftStatus(s)}
+                  className={cn(
+                    "flex flex-col items-center justify-center py-2.5 rounded-2xl border text-xs font-semibold cursor-pointer transition-all",
+                    draftStatus === s 
+                      ? s === "present" ? "border-emerald-500 bg-[#D0F4DE] text-[#2F2738]"
+                        : s === "late" ? "border-amber-500 bg-amber-50 text-amber-700"
+                        : s === "absent" ? "border-rose-500 bg-rose-50 text-rose-700"
+                        : "border-[#2F2738] bg-[#F5EFFA] text-[#2F2738]"
+                      : "border-border bg-card text-[#6B6377] hover:bg-muted/40"
+                  )}
+                >
+                  <span className={cn(
+                    "w-2.5 h-2.5 rounded-full mb-1",
+                    s === "present" ? "bg-emerald-500" :
+                    s === "late" ? "bg-amber-500" :
+                    s === "absent" ? "bg-rose-500" : "bg-muted-foreground"
+                  )} />
+                  {s === "none" ? "N/A Clear" : s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
               Note
             </label>
             <textarea
@@ -373,7 +406,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                 disabled={saving}
                 onClick={async () => {
                   if (editing) {
-                    await persistNote(editing.name, editing.date, "");
+                    await persistNote(editing.name, editing.date, "", draftStatus);
                     setEditing(null);
                   }
                 }}
@@ -395,7 +428,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
                   disabled={saving}
                   onClick={async () => {
                     if (editing) {
-                      await persistNote(editing.name, editing.date, draft);
+                      await persistNote(editing.name, editing.date, draft, draftStatus);
                       setEditing(null);
                     }
                   }}
