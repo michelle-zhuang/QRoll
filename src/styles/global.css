@@ -234,9 +234,9 @@ input:focus, textarea:focus, select:focus {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .hover-row-premium:hover {
-  background-color: var(--muted) !important;
+  background-color: var(--border) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(47, 39, 56, 0.03);
+  box-shadow: 0 4px 12px rgba(47, 39, 56, 0.05);
 }
 .hover-row-premium:active {
   transform: translateY(0);

@@ -503,8 +503,8 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
             {sortedAttendees.map(a => {
               const stat = stats.find(s => s.name === a.name)!;
               return (
-                <tr key={a.name} className="group">
-                  <td className="sticky left-0 bg-card group-hover:bg-muted/40 z-10 pl-1 pr-3 py-1 text-sm font-medium transition-colors shadow-[2px_0_0_0_var(--color-card)] group-hover:shadow-[2px_0_0_0_var(--color-muted)]">
+                <tr key={a.name} className="group hover:bg-muted/30 transition-colors">
+                  <td className="sticky left-0 bg-card group-hover:bg-muted/60 z-10 pl-1 pr-3 py-1 text-sm font-medium transition-colors shadow-[2px_0_0_0_var(--color-card)] group-hover:shadow-[2px_0_0_0_var(--color-muted)]">
                     <div className="w-[140px] sm:w-[180px] truncate" title={a.name}>{a.name}</div>
                   </td>
                   {dates.map(d => {

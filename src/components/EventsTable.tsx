@@ -203,7 +203,7 @@ export function EventsTable({ events }: Props) {
               const ev = row.original;
               const cells = row.getVisibleCells();
               return (
-                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/60 transition-colors">
                   {cells.map((cell, idx) => {
                     const content = flexRender(cell.column.columnDef.cell, cell.getContext());
                     if (cell.column.id === "actions") {
@@ -247,7 +247,7 @@ export function EventsTable({ events }: Props) {
             <a
               key={row.id}
               href={`/admin/events/${ev.id}`}
-              className="block rounded-xl border bg-card p-4 flex flex-col gap-4 hover:bg-muted/10 transition-colors text-card-foreground hover:no-underline"
+              className="block rounded-xl border bg-card p-4 flex flex-col gap-4 hover:bg-muted/40 transition-colors text-card-foreground hover:no-underline"
             >
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <span
