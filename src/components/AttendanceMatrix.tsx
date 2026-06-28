@@ -538,7 +538,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
             disabled={!hasScrollLeft}
             onClick={() => scrollByAmount(-200)}
             className={cn(
-              "sticky top-4 mt-1.5 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
+              "sticky top-[72px] mt-1.5 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
               hasScrollLeft ? "opacity-60 hover:opacity-100" : "opacity-0 pointer-events-none"
             )}
             aria-label="Scroll left"
@@ -654,7 +654,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
             disabled={!hasScrollRight}
             onClick={() => scrollByAmount(200)}
             className={cn(
-              "sticky top-4 mt-1.5 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
+              "sticky top-[72px] mt-1.5 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
               hasScrollRight ? "opacity-60 hover:opacity-100" : "opacity-0 pointer-events-none"
             )}
             aria-label="Scroll right"

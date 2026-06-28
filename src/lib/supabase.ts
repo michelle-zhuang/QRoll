@@ -29,11 +29,41 @@ const mockRosterMembers = [
   { id: 'roster-id-4', full_name: 'Bob Brown', email: 'bob@example.com', claimed_user_id: null },
   { id: 'roster-id-5', full_name: 'Charlie Green', email: 'charlie@example.com', claimed_user_id: null },
   { id: 'roster-id-6', full_name: 'David White', email: 'david@example.com', claimed_user_id: null },
-  { id: 'roster-id-7', full_name: 'Eva Black', email: 'eva@example.com', claimed_user_id: null }
+  { id: 'roster-id-7', full_name: 'Eva Black', email: 'eva@example.com', claimed_user_id: null },
+  { id: 'roster-id-8', full_name: 'Alexis Owens', email: 'alexis@example.com', claimed_user_id: null },
+  { id: 'roster-id-9', full_name: 'Angelina Demiroska', email: 'angelina@example.com', claimed_user_id: null },
+  { id: 'roster-id-10', full_name: 'Anna Li', email: 'anna@example.com', claimed_user_id: null },
+  { id: 'roster-id-11', full_name: 'Ash Fetherbay', email: 'ash@example.com', claimed_user_id: null },
+  { id: 'roster-id-12', full_name: 'Ashna Reddy', email: 'ashna@example.com', claimed_user_id: null },
+  { id: 'roster-id-13', full_name: 'Ava Zhang', email: 'ava@example.com', claimed_user_id: null },
+  { id: 'roster-id-14', full_name: 'Bharath', email: 'bharath@example.com', claimed_user_id: null },
+  { id: 'roster-id-15', full_name: 'Brendon Mak', email: 'brendon@example.com', claimed_user_id: null },
+  { id: 'roster-id-16', full_name: 'Bryan Lu', email: 'bryan@example.com', claimed_user_id: null },
+  { id: 'roster-id-17', full_name: 'Chelsea Chrystal', email: 'chelsea@example.com', claimed_user_id: null },
+  { id: 'roster-id-18', full_name: 'Chetu Khandavilli', email: 'chetu@example.com', claimed_user_id: null },
+  { id: 'roster-id-19', full_name: "Christian 'Chris' Feliciano", email: 'christian@example.com', claimed_user_id: null },
+  { id: 'roster-id-20', full_name: 'Fay Yu', email: 'fay@example.com', claimed_user_id: null },
+  { id: 'roster-id-21', full_name: 'Frank Zhou', email: 'frank@example.com', claimed_user_id: null },
+  { id: 'roster-id-22', full_name: 'Grace Chang', email: 'grace@example.com', claimed_user_id: null },
+  { id: 'roster-id-23', full_name: 'Ha-Yoon Lee', email: 'hayoon@example.com', claimed_user_id: null },
+  { id: 'roster-id-24', full_name: 'Huzi', email: 'huzi@example.com', claimed_user_id: null },
+  { id: 'roster-id-25', full_name: 'Ieva Bračiulytė', email: 'ieva@example.com', claimed_user_id: null },
+  { id: 'roster-id-26', full_name: 'Jackson Lind', email: 'jackson@example.com', claimed_user_id: null },
+  { id: 'roster-id-27', full_name: 'Jose Li', email: 'jose@example.com', claimed_user_id: null },
+  { id: 'roster-id-28', full_name: 'Katie Leung', email: 'katie@example.com', claimed_user_id: null },
+  { id: 'roster-id-29', full_name: 'Kelvin Chen', email: 'kelvin@example.com', claimed_user_id: null },
+  { id: 'roster-id-30', full_name: 'Ken Lin', email: 'ken@example.com', claimed_user_id: null },
+  { id: 'roster-id-31', full_name: 'Kevin Lin', email: 'kevin.lin@example.com', claimed_user_id: null },
+  { id: 'roster-id-32', full_name: 'Kevin Yochia Lin', email: 'kevin.y.lin@example.com', claimed_user_id: null },
+  { id: 'roster-id-33', full_name: 'Kine Camara', email: 'kine@example.com', claimed_user_id: null },
+  { id: 'roster-id-34', full_name: 'Lex Ramirez', email: 'lex@example.com', claimed_user_id: null },
+  { id: 'roster-id-35', full_name: 'Lisa Ma', email: 'lisa@example.com', claimed_user_id: null },
+  { id: 'roster-id-36', full_name: 'Lucy Zhang', email: 'lucy@example.com', claimed_user_id: null },
+  { id: 'roster-id-37', full_name: 'Maxine Shih', email: 'maxine@example.com', claimed_user_id: null }
 ];
 
-const mockEvents = Array.from({ length: 15 }, (_, i) => {
-  const daysOffset = (i - 10) * 3; // spread events across 30 days
+const mockEvents = Array.from({ length: 30 }, (_, i) => {
+  const daysOffset = (i - 15) * 3; // spread events across 90 days
   const eventDate = new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000);
   return {
     id: `event-id-${i + 1}`,
@@ -54,8 +84,8 @@ const mockAttendance: any[] = [];
 // Generate attendance records for all mockEvents dynamically
 mockEvents.forEach((e, i) => {
   mockRosterMembers.forEach((m, idx) => {
-    // Skip some roster members for the first event to allow tests to run
-    if (i === 0 && idx >= 3) return;
+    // Skip some roster members for event-id-15 to allow tests to run
+    if (i === 14 && idx >= 3) return;
 
     const statuses: ('present' | 'late' | 'absent')[] = ['present', 'late', 'absent'];
     const status = statuses[(e.id.charCodeAt(e.id.length - 1) + idx) % 3];
