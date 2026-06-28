@@ -517,19 +517,21 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
           aria-hidden
         />
 
-        {/* Left Scroll Button */}
-        <button
-          type="button"
-          disabled={!hasScrollLeft}
-          onClick={() => scrollByAmount(-200)}
-          className={cn(
-            "absolute top-1/2 -translate-y-1/2 left-[130px] sm:left-[170px] z-20 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center",
-            hasScrollLeft ? "opacity-45 hover:opacity-100" : "opacity-0 pointer-events-none"
-          )}
-          aria-label="Scroll left"
-        >
-          <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
-        </button>
+        {/* Left Scroll Button Container */}
+        <div className="absolute inset-y-0 left-[130px] sm:left-[170px] z-20 w-8 pointer-events-none flex items-center justify-center">
+          <button
+            type="button"
+            disabled={!hasScrollLeft}
+            onClick={() => scrollByAmount(-200)}
+            className={cn(
+              "sticky top-[50%] -translate-y-1/2 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
+              hasScrollLeft ? "opacity-45 hover:opacity-100" : "opacity-0 pointer-events-none"
+            )}
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+          </button>
+        </div>
 
         <div
           ref={scrollContainerRef}
@@ -631,19 +633,21 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
           </table>
         </div>
 
-        {/* Right Scroll Button */}
-        <button
-          type="button"
-          disabled={!hasScrollRight}
-          onClick={() => scrollByAmount(200)}
-          className={cn(
-            "absolute top-1/2 -translate-y-1/2 right-2 z-20 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center",
-            hasScrollRight ? "opacity-45 hover:opacity-100" : "opacity-0 pointer-events-none"
-          )}
-          aria-label="Scroll right"
-        >
-          <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
-        </button>
+        {/* Right Scroll Button Container */}
+        <div className="absolute inset-y-0 right-2 z-20 w-8 pointer-events-none flex items-center justify-center">
+          <button
+            type="button"
+            disabled={!hasScrollRight}
+            onClick={() => scrollByAmount(200)}
+            className={cn(
+              "sticky top-[50%] -translate-y-1/2 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
+              hasScrollRight ? "opacity-45 hover:opacity-100" : "opacity-0 pointer-events-none"
+            )}
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
+          </button>
+        </div>
 
         {/* Right Gradient Overlay */}
         <div
