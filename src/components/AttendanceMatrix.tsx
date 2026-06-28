@@ -532,7 +532,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
         />
 
         {/* Left Scroll Button Container */}
-        <div className="absolute inset-y-0 left-[130px] sm:left-[170px] z-20 w-8 pointer-events-none flex items-center justify-center">
+        <div className="absolute inset-y-0 left-[130px] sm:left-[170px] z-20 w-8 pointer-events-none flex items-start justify-center">
           <button
             type="button"
             disabled={!hasScrollLeft}
@@ -648,7 +648,7 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
         </div>
 
         {/* Right Scroll Button Container */}
-        <div className="absolute inset-y-0 right-2 z-20 w-8 pointer-events-none flex items-center justify-center">
+        <div className="absolute inset-y-0 right-2 z-20 w-8 pointer-events-none flex items-start justify-center">
           <button
             type="button"
             disabled={!hasScrollRight}
