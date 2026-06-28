@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "src/lib/utils";
 import type { AttendanceData, AttendanceStatus, AttendanceRecord } from "src/lib/attendanceTypes";
 
@@ -80,6 +80,35 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
   const [hover, setHover] = useState<Hover | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [hasScrollLeft, setHasScrollLeft] = useState(false);
+  const [hasScrollRight, setHasScrollRight] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const updateScrollState = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setHasScrollLeft(scrollLeft > 5);
+    setHasScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
+  };
+
+  const scrollByAmount = (amount: number) => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    // Wait a brief frame for JSDOM/browser to compute widths
+    const timer = setTimeout(updateScrollState, 50);
+    window.addEventListener("resize", updateScrollState);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", updateScrollState);
+    };
+  }, [dates, attendees]);
 
   useEffect(() => {
     if (usingRemote) return;
@@ -478,8 +507,35 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
 
   return (
     <>
-      <div className="relative">
-        <div className="overflow-x-auto [scrollbar-width:thin]">
+      <div className="relative group/matrix">
+        {/* Left Gradient Overlay */}
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-y-0 left-[140px] sm:left-[180px] w-10 bg-gradient-to-r from-card to-transparent z-10 transition-opacity duration-300",
+            hasScrollLeft ? "opacity-100" : "opacity-0"
+          )}
+          aria-hidden
+        />
+
+        {/* Left Scroll Button */}
+        <button
+          type="button"
+          disabled={!hasScrollLeft}
+          onClick={() => scrollByAmount(-200)}
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 left-[130px] sm:left-[170px] z-20 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center",
+            hasScrollLeft ? "opacity-45 hover:opacity-100" : "opacity-0 pointer-events-none"
+          )}
+          aria-label="Scroll left"
+        >
+          <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+        </button>
+
+        <div
+          ref={scrollContainerRef}
+          onScroll={updateScrollState}
+          className="overflow-x-auto [scrollbar-width:thin]"
+        >
           <table className="border-separate border-spacing-y-1">
           <thead>
             <tr>
@@ -572,9 +628,31 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
               <td />
             </tr>
           </tbody>
-        </table>
+          </table>
         </div>
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-card to-transparent sm:hidden" aria-hidden />
+
+        {/* Right Scroll Button */}
+        <button
+          type="button"
+          disabled={!hasScrollRight}
+          onClick={() => scrollByAmount(200)}
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 right-2 z-20 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center",
+            hasScrollRight ? "opacity-45 hover:opacity-100" : "opacity-0 pointer-events-none"
+          )}
+          aria-label="Scroll right"
+        >
+          <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
+        </button>
+
+        {/* Right Gradient Overlay */}
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card to-transparent z-10 transition-opacity duration-300",
+            hasScrollRight ? "opacity-100" : "opacity-0"
+          )}
+          aria-hidden
+        />
       </div>
 
       {renderTooltip()}
