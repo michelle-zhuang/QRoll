@@ -129,6 +129,8 @@ export class MockQueryBuilder {
     this.table = table;
   }
 
+
+
   select(fields?: string) {
     this.operation = 'select';
     return this;
