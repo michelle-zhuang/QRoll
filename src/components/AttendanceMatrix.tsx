@@ -532,14 +532,14 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
         />
 
         {/* Left Scroll Button Container */}
-        <div className="absolute inset-y-0 left-[130px] sm:left-[170px] z-20 w-8 pointer-events-none flex items-start justify-center">
+        <div className="absolute inset-y-0 left-[124px] sm:left-[164px] z-20 w-8 pointer-events-none flex items-start justify-center">
           <button
             type="button"
             disabled={!hasScrollLeft}
             onClick={() => scrollByAmount(-200)}
             className={cn(
-              "sticky top-[35%] -translate-y-1/2 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
-              hasScrollLeft ? "opacity-60 hover:opacity-100" : "opacity-0 pointer-events-none"
+              "sticky top-[35%] -translate-y-1/2 h-8 w-8 rounded-full bg-card border border-border/80 shadow-md text-primary hover:bg-primary hover:text-primary-foreground hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center pointer-events-auto",
+              hasScrollLeft ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
             )}
             aria-label="Scroll left"
           >
@@ -648,14 +648,14 @@ export const AttendanceMatrix = ({ data, noteApiUrl, canEditNotes = true }: Prop
         </div>
 
         {/* Right Scroll Button Container */}
-        <div className="absolute inset-y-0 right-2 z-20 w-8 pointer-events-none flex items-start justify-center">
+        <div className="absolute inset-y-0 right-[-16px] z-20 w-8 pointer-events-none flex items-start justify-center">
           <button
             type="button"
             disabled={!hasScrollRight}
             onClick={() => scrollByAmount(200)}
             className={cn(
-              "sticky top-[35%] -translate-y-1/2 p-2 text-primary hover:scale-110 active:scale-95 transition-all duration-200 bg-transparent border-none cursor-pointer flex items-center justify-center pointer-events-auto",
-              hasScrollRight ? "opacity-60 hover:opacity-100" : "opacity-0 pointer-events-none"
+              "sticky top-[35%] -translate-y-1/2 h-8 w-8 rounded-full bg-card border border-border/80 shadow-md text-primary hover:bg-primary hover:text-primary-foreground hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center pointer-events-auto",
+              hasScrollRight ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
             )}
             aria-label="Scroll right"
           >
