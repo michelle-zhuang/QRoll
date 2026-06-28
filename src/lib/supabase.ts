@@ -32,61 +32,47 @@ const mockRosterMembers = [
   { id: 'roster-id-7', full_name: 'Eva Black', email: 'eva@example.com', claimed_user_id: null }
 ];
 
-const mockEvents = [
-  {
-    id: 'event-id-1',
-    title: 'Beginner Hip Hop Class',
-    description: 'Weekly hip hop class for beginners.',
+const mockEvents = Array.from({ length: 15 }, (_, i) => {
+  const daysOffset = (i - 10) * 3; // spread events across 30 days
+  const eventDate = new Date(Date.now() + daysOffset * 24 * 60 * 60 * 1000);
+  return {
+    id: `event-id-${i + 1}`,
+    title: `Dance Session ${i + 1}`,
+    description: `Regular recurring dance session ${i + 1}.`,
     cancelled_at: null,
-    starts_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    checkin_opens_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
-    late_after_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000).toISOString(),
-    checkin_closes_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-    qr_token: 'token-hiphop-1',
+    starts_at: eventDate.toISOString(),
+    checkin_opens_at: new Date(eventDate.getTime() - 30 * 60 * 1000).toISOString(),
+    late_after_at: new Date(eventDate.getTime() + 10 * 60 * 1000).toISOString(),
+    checkin_closes_at: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+    qr_token: `token-session-${i + 1}`,
     created_by: mockAdminId,
     created_at: new Date().toISOString()
-  },
-  {
-    id: 'event-id-2',
-    title: 'Intermediate Contemporary Dance',
-    description: 'Contemporary technique session.',
-    cancelled_at: null,
-    starts_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    checkin_opens_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
-    late_after_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000).toISOString(),
-    checkin_closes_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-    qr_token: 'token-contemporary-2',
-    created_by: mockAdminId,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'event-id-3',
-    title: 'Advanced Ballet Workshop',
-    cancelled_at: null,
-    description: 'Intense ballet session.',
-    starts_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    checkin_opens_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
-    late_after_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000).toISOString(),
-    checkin_closes_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-    qr_token: 'token-ballet-3',
-    created_by: mockAdminId,
-    created_at: new Date().toISOString()
-  }
-];
+  };
+});
 
-const mockAttendance = [
-  { event_id: 'event-id-1', roster_member_id: 'roster-id-1', status: 'present', note: 'Awesome energy', checked_in_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 - 10 * 60 * 1000).toISOString() },
-  { event_id: 'event-id-1', roster_member_id: 'roster-id-2', status: 'late', note: 'Traffic issue', checked_in_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 15 * 60 * 1000).toISOString() },
-  { event_id: 'event-id-1', roster_member_id: 'roster-id-3', status: 'present', note: null, checked_in_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 - 5 * 60 * 1000).toISOString() },
-  { event_id: 'event-id-1', roster_member_id: 'roster-id-4', status: 'absent', note: 'Injured ankle', checked_in_at: null },
-  { event_id: 'event-id-1', roster_member_id: 'roster-id-5', status: 'present', note: null, checked_in_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() },
+const mockAttendance: any[] = [];
+// Generate attendance records for all mockEvents dynamically
+mockEvents.forEach((e, i) => {
+  mockRosterMembers.forEach((m, idx) => {
+    // Skip some roster members for the first event to allow tests to run
+    if (i === 0 && idx >= 3) return;
 
-  { event_id: 'event-id-2', roster_member_id: 'roster-id-1', status: 'present', note: null, checked_in_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 8 * 60 * 1000).toISOString() },
-  { event_id: 'event-id-2', roster_member_id: 'roster-id-2', status: 'present', note: null, checked_in_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 15 * 60 * 1000).toISOString() },
-  { event_id: 'event-id-2', roster_member_id: 'roster-id-3', status: 'absent', note: 'School exam', checked_in_at: null },
-  { event_id: 'event-id-2', roster_member_id: 'roster-id-4', status: 'present', note: null, checked_in_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-  { event_id: 'event-id-2', roster_member_id: 'roster-id-5', status: 'late', note: 'Worked late', checked_in_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 12 * 60 * 1000).toISOString() }
-];
+    const statuses: ('present' | 'late' | 'absent')[] = ['present', 'late', 'absent'];
+    const status = statuses[(e.id.charCodeAt(e.id.length - 1) + idx) % 3];
+    const checked_in_at = status !== 'absent'
+      ? new Date(new Date(e.starts_at).getTime() + (status === 'late' ? 12 : -8) * 60 * 1000).toISOString()
+      : null;
+    
+    mockAttendance.push({
+      event_id: e.id,
+      roster_member_id: m.id,
+      status,
+      note: status === 'late' ? 'Traffic' : status === 'absent' ? 'Sick' : null,
+      checked_in_at
+    });
+  });
+});
+
 
 const mockAppSettings = [
   { key: 'allow_member_dashboard', value: false }
