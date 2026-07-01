@@ -65,6 +65,44 @@ if (!event) {
   }
 }
 
+// Team-level token: one stable QR per team, resolves to whichever event is currently active.
+if (!event && !nextOccurrence) {
+  const { data: team } = await supabase
+    .from('teams')
+    .select('id, name')
+    .eq('qr_token', token)
+    .maybeSingle();
+  if (team) {
+    teamId = team.id;
+    const nowIso = new Date().toISOString();
+    const { data: active } = await supabase
+      .from('events')
+      .select('*')
+      .eq('team_id', team.id)
+      .is('cancelled_at', null)
+      .lte('checkin_opens_at', nowIso)
+      .gte('checkin_closes_at', nowIso)
+      .order('checkin_closes_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (active) {
+      event = active;
+      teamId = active.team_id;
+    } else {
+      const { data: next } = await supabase
+        .from('events')
+        .select('title, checkin_opens_at')
+        .eq('team_id', team.id)
+        .is('cancelled_at', null)
+        .gt('checkin_opens_at', nowIso)
+        .order('checkin_opens_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      nextOccurrence = next ?? { title: team.name, checkin_opens_at: '' };
+    }
+  }
+}
+
 if (!event && !nextOccurrence) return Astro.redirect('/404');
 
 // Attempt to auto-link this user to a team member if not already claimed.

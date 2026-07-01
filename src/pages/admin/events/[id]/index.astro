@@ -34,8 +34,8 @@ if (!event) return Astro.redirect('/admin');
 const profile = profileRes.data;
 const isGlobalAdmin = profile?.role === 'admin';
 
-// Get company of the event team
-const { data: teamData } = await supabase.from('teams').select('company_id').eq('id', event.team_id).single();
+// Get company + qr_token of the event team
+const { data: teamData } = await supabase.from('teams').select('company_id, qr_token').eq('id', event.team_id).single();
 const eventCompanyId = teamData?.company_id;
 
 const isCompanyAdmin = (myCompanyMembershipsRes.data || []).some(
@@ -108,7 +108,12 @@ const lateMinutesFor = (checkedAt: string) => {
   return Math.max(0, Math.round(diff / 60000));
 };
 
-const checkinUrl = event.qr_token ? `${Astro.url.origin}/checkin/${event.qr_token}` : null;
+// Team-level QR is the stable default — doesn't change when event is edited.
+// Falls back to per-event token for historical events or edge cases.
+const checkinUrl = teamData?.qr_token
+  ? `${Astro.url.origin}/checkin/${teamData.qr_token}`
+  : (event.qr_token ? `${Astro.url.origin}/checkin/${event.qr_token}` : null);
+const eventCheckinUrl = event.qr_token ? `${Astro.url.origin}/checkin/${event.qr_token}` : null;
 ---
 
 <Layout title={`${event.title} - Details`}>
