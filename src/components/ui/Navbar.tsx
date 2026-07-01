@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, LogOut, LogIn, User, QrCode } from "lucide-react";
+import { Menu, X, LogOut, LogIn, User, QrCode, Building2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "src/lib/utils";
 import { CompanySelector } from "../CompanySelector";
@@ -13,6 +13,7 @@ interface NavbarProps {
   teams?: any[];
   selectedCompanyId?: string | null;
   selectedTeamId?: string | null;
+  isGlobalAdmin?: boolean;
 }
 
 interface NavLink {
@@ -28,6 +29,7 @@ export const Navbar = ({
   teams = [],
   selectedCompanyId = null,
   selectedTeamId = null,
+  isGlobalAdmin = false,
 }: NavbarProps) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isUserOpen, setIsUserOpen] = useState(false);
@@ -65,12 +67,21 @@ export const Navbar = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const links: NavLink[] = role === "admin" ? [
+  const activeCompany = companies.find(c => c.id === selectedCompanyId);
+  const companySlug = activeCompany?.slug;
+
+  const links: NavLink[] = [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/admin", label: "Events" },
-    { href: "/admin/roster", label: "Roster" },
-    { href: "/admin/users", label: "Staff & Admins" }
-  ] : [];
+    ...(role === "admin" ? [
+      { href: "/admin", label: "Events" },
+      { href: "/admin/roster", label: "Roster" },
+      ...(isGlobalAdmin ? [{ href: "/admin/users", label: "Staff & Admins" }] : []),
+      ...(companySlug 
+        ? [{ href: `/companies/${companySlug}`, label: "Company" }] 
+        : (isGlobalAdmin ? [{ href: "/companies", label: "Companies" }] : [])
+      )
+    ] : [])
+  ].filter(() => role !== "guest");
 
   const isActive = (href: string) =>
     href === "/dashboard"
@@ -185,6 +196,14 @@ export const Navbar = ({
                         <p className="text-xs text-muted-foreground">Signed in as</p>
                         <p className="text-sm font-medium truncate">{user.email}</p>
                       </div>
+                      <div className="h-px bg-border my-1" />
+                      <a
+                        href="/companies"
+                        className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        <Building2 className="h-4 w-4" />
+                        <span>Create a Company</span>
+                      </a>
                       <div className="h-px bg-border my-1" />
                       <form action="/api/auth/signout" method="POST">
                         <button

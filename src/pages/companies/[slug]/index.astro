@@ -42,20 +42,13 @@ const isCompanyAdmin = memberInfoRes.data?.role === 'admin';
 const isGlobalAdmin = profileRes.data?.role === 'admin';
 const isAdmin = isGlobalAdmin || isCompanyAdmin;
 
+if (!isAdmin) {
+  return Astro.redirect('/dashboard');
+}
+
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const action = formData.get('_action');
-
-  if (action === 'join_company') {
-    const { error } = await supabase
-      .from('company_members')
-      .insert({ company_id: company.id, user_id: session.user.id, role: 'member' });
-    if (!error) {
-      return Astro.redirect(`/companies/${slug}`);
-    } else {
-      errorMsg = error.message;
-    }
-  }
 
   if (action === 'create_team') {
     if (!isAdmin) {
@@ -101,17 +94,9 @@ const members = membersRes.data || [];
         <p class="text-muted-foreground mt-1 text-sm">Manage teams and view roster membership within the company.</p>
       </div>
       <div>
-        {!isCompanyMember && (
-          <form method="post">
-            <input type="hidden" name="_action" value="join_company" />
-            <AstroButton type="submit">Join Company</AstroButton>
-          </form>
-        )}
-        {isCompanyMember && (
-          <AstroBadge variant={isAdmin ? 'default' : 'secondary'}>
-            {isAdmin ? 'Company Admin' : 'Company Member'}
-          </AstroBadge>
-        )}
+        <AstroBadge variant="default">
+          Company Admin
+        </AstroBadge>
       </div>
     </div>
 
@@ -123,7 +108,7 @@ const members = membersRes.data || [];
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Teams Column -->
-      <div class="lg:col-span-2 space-y-6">
+      <div class={isAdmin ? "lg:col-span-2 space-y-6" : "lg:col-span-3 space-y-6"}>
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-semibold tracking-tight">Teams</h2>
           {isAdmin && (
@@ -190,29 +175,31 @@ const members = membersRes.data || [];
       </div>
 
       <!-- Members Column -->
-      <div class="lg:col-span-1 space-y-4">
-        <h2 class="text-xl font-semibold tracking-tight">Company Members</h2>
-        <AstroCard className="p-4">
-          <div class="divide-y divide-border">
-            {members.map(m => {
-              const p = (m.profiles as any) || {};
-              const name = p.full_name || 'Anonymous Member';
-              const email = p.email || 'No email';
-              return (
-                <div class="py-3 flex items-center justify-between gap-2 first:pt-0 last:pb-0">
-                  <div class="min-w-0">
-                    <p class="text-sm font-semibold truncate text-foreground">{name}</p>
-                    <p class="text-xs text-muted-foreground truncate">{email}</p>
+      {isAdmin && (
+        <div class="lg:col-span-1 space-y-4">
+          <h2 class="text-xl font-semibold tracking-tight">Company Members</h2>
+          <AstroCard className="p-4">
+            <div class="divide-y divide-border">
+              {members.map(m => {
+                const p = (m.profiles as any) || {};
+                const name = p.full_name || 'Anonymous Member';
+                const email = p.email || 'No email';
+                return (
+                  <div class="py-3 flex items-center justify-between gap-2 first:pt-0 last:pb-0">
+                    <div class="min-w-0">
+                      <p class="text-sm font-semibold truncate text-foreground">{name}</p>
+                      <p class="text-xs text-muted-foreground truncate">{email}</p>
+                    </div>
+                    <AstroBadge variant={m.role === 'admin' ? 'default' : 'secondary'} className="shrink-0">
+                      {m.role}
+                    </AstroBadge>
                   </div>
-                  <AstroBadge variant={m.role === 'admin' ? 'default' : 'secondary'} className="shrink-0">
-                    {m.role}
-                  </AstroBadge>
-                </div>
-              );
-            })}
-          </div>
-        </AstroCard>
-      </div>
+                );
+              })}
+            </div>
+          </AstroCard>
+        </div>
+      )}
     </div>
   </main>
 </Layout>

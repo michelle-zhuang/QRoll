@@ -24,6 +24,7 @@ let selectedCompanyId: string | null = Astro.cookies.get('qroll_company_id')?.va
 
 let companies: any[] = [];
 let teams: any[] = [];
+let isGlobalAdmin = false;
 
 if (user) {
   // Retrieve all teams this user belongs to
@@ -63,7 +64,15 @@ if (user) {
     }
   }
 
-  // Determine role based on company_members
+  // Fetch profile to check for global admin status
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+  isGlobalAdmin = profile?.role === 'admin';
+
+  // Determine role based on company_members or fallback to global admin
   if (selectedCompanyId) {
     const { data: member } = await supabase
       .from('company_members')
@@ -72,15 +81,9 @@ if (user) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    role = member?.role === 'admin' ? 'admin' : 'attendee';
+    role = (member?.role === 'admin' || isGlobalAdmin) ? 'admin' : 'attendee';
   } else {
-    // Fallback: check profile role if no company membership exists
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-    role = profile?.role === 'admin' ? 'admin' : 'attendee';
+    role = isGlobalAdmin ? 'admin' : 'attendee';
   }
 }
 ---
@@ -123,6 +126,7 @@ if (user) {
 				teams={teams}
 				selectedCompanyId={selectedCompanyId}
 				selectedTeamId={selectedTeamId}
+				isGlobalAdmin={isGlobalAdmin}
 			/>
 		)}
 		<div class="flex-grow">
