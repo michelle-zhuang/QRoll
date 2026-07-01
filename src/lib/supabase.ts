@@ -22,7 +22,10 @@ const mockProfiles = [
   }
 ];
 
-const mockRosterMembers = [
+const mockCompanies = [{ id: 'company-id-1', name: 'Party People', slug: 'party-people', created_by: mockAdminId, created_at: new Date().toISOString() }];
+const mockCompanyMembers = [{ id: 'cm-id-1', company_id: 'company-id-1', user_id: mockAdminId, role: 'admin', created_at: new Date().toISOString() }];
+const mockTeams = [{ id: 'team-id-1', company_id: 'company-id-1', name: 'Season 1', invite_code: 'abc-123', created_by: mockAdminId, created_at: new Date().toISOString() }];
+const mockTeamMembers = [
   { id: 'roster-id-1', full_name: 'John Doe', email: 'john@example.com', claimed_user_id: 'user-id-attendee-1' },
   { id: 'roster-id-2', full_name: 'Jane Smith', email: 'jane@example.com', claimed_user_id: null },
   { id: 'roster-id-3', full_name: 'Alice Johnson', email: 'alice@example.com', claimed_user_id: null },
@@ -60,7 +63,7 @@ const mockRosterMembers = [
   { id: 'roster-id-35', full_name: 'Lisa Ma', email: 'lisa@example.com', claimed_user_id: null },
   { id: 'roster-id-36', full_name: 'Lucy Zhang', email: 'lucy@example.com', claimed_user_id: null },
   { id: 'roster-id-37', full_name: 'Maxine Shih', email: 'maxine@example.com', claimed_user_id: null }
-];
+].map(m => ({ ...m, team_id: 'team-id-1', user_id: m.claimed_user_id }));
 
 const mockEvents = Array.from({ length: 30 }, (_, i) => {
   const daysOffset = (i - 15) * 3; // spread events across 90 days
@@ -75,6 +78,7 @@ const mockEvents = Array.from({ length: 30 }, (_, i) => {
     late_after_at: new Date(eventDate.getTime() + 10 * 60 * 1000).toISOString(),
     checkin_closes_at: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
     qr_token: `token-session-${i + 1}`,
+    team_id: 'team-id-1',
     created_by: mockAdminId,
     created_at: new Date().toISOString()
   };
@@ -83,7 +87,7 @@ const mockEvents = Array.from({ length: 30 }, (_, i) => {
 const mockAttendance: any[] = [];
 // Generate attendance records for all mockEvents dynamically
 mockEvents.forEach((e, i) => {
-  mockRosterMembers.forEach((m, idx) => {
+  mockTeamMembers.forEach((m, idx) => {
     // Skip some roster members for event-id-15 to allow tests to run
     if (i === 14 && idx >= 3) return;
 
@@ -95,7 +99,7 @@ mockEvents.forEach((e, i) => {
     
     mockAttendance.push({
       event_id: e.id,
-      roster_member_id: m.id,
+      team_member_id: m.id,
       status,
       note: status === 'late' ? 'Traffic' : status === 'absent' ? 'Sick' : null,
       checked_in_at
@@ -223,7 +227,10 @@ export class MockQueryBuilder {
   execute() {
     let dataset: any[] = [];
     if (this.table === 'profiles') dataset = mockProfiles;
-    else if (this.table === 'roster_members') dataset = mockRosterMembers;
+    else if (this.table === 'companies') dataset = mockCompanies;
+    else if (this.table === 'company_members') dataset = mockCompanyMembers;
+    else if (this.table === 'teams') dataset = mockTeams;
+    else if (this.table === 'team_members') dataset = mockTeamMembers;
     else if (this.table === 'events') dataset = mockEvents;
     else if (this.table === 'attendance') dataset = mockAttendance;
     else if (this.table === 'app_settings') dataset = mockAppSettings;
@@ -298,7 +305,7 @@ export class MockQueryBuilder {
       const upserted: any[] = [];
       for (const row of rows) {
         const existingIdx = dataset.findIndex(
-          (item: any) => item.event_id === row.event_id && item.roster_member_id === row.roster_member_id
+          (item: any) => item.event_id === row.event_id && item.team_member_id === row.team_member_id
         );
         if (existingIdx > -1) {
           const shouldIgnoreDups = this.upsertOptions?.ignoreDuplicates || false;
@@ -362,9 +369,18 @@ export class MockQueryBuilder {
       if (this.table === 'profiles') {
         mockProfiles.length = 0;
         mockProfiles.push(...remaining);
-      } else if (this.table === 'roster_members') {
-        mockRosterMembers.length = 0;
-        mockRosterMembers.push(...remaining);
+      } else if (this.table === 'companies') {
+        mockCompanies.length = 0;
+        mockCompanies.push(...remaining);
+      } else if (this.table === 'company_members') {
+        mockCompanyMembers.length = 0;
+        mockCompanyMembers.push(...remaining);
+      } else if (this.table === 'teams') {
+        mockTeams.length = 0;
+        mockTeams.push(...remaining);
+      } else if (this.table === 'team_members') {
+        mockTeamMembers.length = 0;
+        mockTeamMembers.push(...remaining);
       } else if (this.table === 'events') {
         mockEvents.length = 0;
         mockEvents.push(...remaining);
@@ -470,7 +486,7 @@ export async function markAbsentForClosedEvents(
         .lt('checkin_closes_at', nowIso)
         .gt('checkin_closes_at', thirtyDaysAgo),
       roster ? null : supabase
-        .from('roster_members')
+        .from('team_members')
         .select('id')
     ]);
     
@@ -489,24 +505,24 @@ export async function markAbsentForClosedEvents(
   // 3. Get all existing attendance records for these closed events
   const { data: existingAttendance } = await supabase
     .from('attendance')
-    .select('event_id, roster_member_id')
+    .select('event_id, team_member_id')
     .in('event_id', closedEventIds);
 
   if (!existingAttendance) return;
 
   // Create a lookup: "event_id:roster_member_id"
   const existingSet = new Set(
-    existingAttendance.map((a: any) => `${a.event_id}:${a.roster_member_id}`)
+    existingAttendance.map((a: any) => `${a.event_id}:${a.team_member_id}`)
   );
 
   // 4. Find which combinations of (closedEvent, rosterMember) are missing
-  const missingInserts: { event_id: string; roster_member_id: string; status: string }[] = [];
+  const missingInserts: { event_id: string; team_member_id: string; status: string }[] = [];
   for (const eventId of closedEventIds) {
     for (const member of roster) {
       if (!existingSet.has(`${eventId}:${member.id}`)) {
         missingInserts.push({
           event_id: eventId,
-          roster_member_id: member.id,
+          team_member_id: member.id,
           status: 'absent'
         });
       }
@@ -519,7 +535,7 @@ export async function markAbsentForClosedEvents(
     try {
       await supabase
         .from('attendance')
-        .upsert(missingInserts, { onConflict: 'event_id,roster_member_id', ignoreDuplicates: true });
+        .upsert(missingInserts, { onConflict: 'event_id,team_member_id', ignoreDuplicates: true });
     } catch (err) {
       console.error('[QRoll] Failed to mark absent for closed events:', err);
     }

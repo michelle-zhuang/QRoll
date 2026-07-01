@@ -2,11 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { Menu, X, LogOut, LogIn, User, QrCode } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "src/lib/utils";
+import { CompanySelector } from "../CompanySelector";
+import { TeamSelector } from "../TeamSelector";
 
 interface NavbarProps {
   user: any;
   role: "admin" | "attendee" | "guest";
   currentPath: string;
+  companies?: any[];
+  teams?: any[];
+  selectedCompanyId?: string | null;
+  selectedTeamId?: string | null;
 }
 
 interface NavLink {
@@ -14,10 +20,40 @@ interface NavLink {
   label: string;
 }
 
-export const Navbar = ({ user, role, currentPath }: NavbarProps) => {
+export const Navbar = ({
+  user,
+  role,
+  currentPath,
+  companies = [],
+  teams = [],
+  selectedCompanyId = null,
+  selectedTeamId = null,
+}: NavbarProps) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isUserOpen, setIsUserOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const filteredTeams = teams.filter(t => t.company_id === selectedCompanyId);
+
+  const handleCompanyChange = (companyId: string) => {
+    document.cookie = `qroll_company_id=${companyId}; path=/; max-age=31536000`;
+    const firstTeam = teams.find(t => t.company_id === companyId);
+    if (firstTeam) {
+      document.cookie = `qroll_team_id=${firstTeam.id}; path=/; max-age=31536000`;
+    } else {
+      document.cookie = `qroll_team_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+    }
+    window.location.reload();
+  };
+
+  const handleTeamChange = (teamId: string) => {
+    document.cookie = `qroll_team_id=${teamId}; path=/; max-age=31536000`;
+    const teamObj = teams.find(t => t.id === teamId);
+    if (teamObj) {
+      document.cookie = `qroll_company_id=${teamObj.company_id}; path=/; max-age=31536000`;
+    }
+    window.location.reload();
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -96,6 +132,20 @@ export const Navbar = ({ user, role, currentPath }: NavbarProps) => {
 
           {/* Right section */}
           <div className="flex items-center gap-2">
+            {user && (
+              <div className="hidden md:flex items-center gap-3 mr-2">
+                <CompanySelector
+                  companies={companies}
+                  selectedCompanyId={selectedCompanyId}
+                  onChange={handleCompanyChange}
+                />
+                <TeamSelector
+                  teams={filteredTeams}
+                  selectedTeamId={selectedTeamId}
+                  onChange={handleTeamChange}
+                />
+              </div>
+            )}
             {!user ? (
               <a
                 href="/login"
@@ -177,6 +227,20 @@ export const Navbar = ({ user, role, currentPath }: NavbarProps) => {
             className="md:hidden overflow-hidden border-t border-border/60 bg-background"
           >
             <nav className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex flex-col gap-1">
+              {user && (
+                <div className="flex flex-col gap-3 px-4 py-2 border-b border-border/60 mb-2">
+                  <CompanySelector
+                    companies={companies}
+                    selectedCompanyId={selectedCompanyId}
+                    onChange={handleCompanyChange}
+                  />
+                  <TeamSelector
+                    teams={filteredTeams}
+                    selectedTeamId={selectedTeamId}
+                    onChange={handleTeamChange}
+                  />
+                </div>
+              )}
               {links.map((link) => (
                 <a
                   key={link.href}

@@ -1,15 +1,15 @@
 /**
- * Roster onboarding helpers.
+ * Team onboarding helpers.
  *
  * These functions are used by the check-in page to auto-link a signed-in user
- * to their roster entry or to present a fuzzy-match selection UI.
+ * to their team entry or to present a fuzzy-match selection UI.
  */
 
-export type RosterMember = {
+export type TeamMember = {
   id: string;
   full_name: string;
   email: string | null;
-  claimed_user_id: string | null;
+  user_id: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -35,23 +35,25 @@ function levenshtein(a: string, b: string): number {
 // findExactNameMatch
 // ---------------------------------------------------------------------------
 /**
- * Returns the first unclaimed roster member whose full_name exactly matches
+ * Returns the first unclaimed team member whose full_name exactly matches
  * `fullName` (case-insensitive), or null if none found.
  */
 export async function findExactNameMatch(
   supabase: any,
+  teamId: string,
   fullName: string
-): Promise<RosterMember | null> {
+): Promise<TeamMember | null> {
   const { data, error } = await supabase
-    .from('roster_members')
-    .select('id, full_name, email, claimed_user_id')
-    .is('claimed_user_id', null);
+    .from('team_members')
+    .select('id, full_name, email, user_id')
+    .eq('team_id', teamId)
+    .is('user_id', null);
 
   if (error || !data) return null;
 
   const lower = fullName.toLowerCase();
   return (
-    (data as RosterMember[]).find(
+    (data as TeamMember[]).find(
       (m) => m.full_name.toLowerCase() === lower
     ) ?? null
   );
@@ -61,26 +63,28 @@ export async function findExactNameMatch(
 // findFuzzyMatches
 // ---------------------------------------------------------------------------
 /**
- * Returns up to `limit` unclaimed roster members whose full_name is "close"
+ * Returns up to `limit` unclaimed team members whose full_name is "close"
  * to `fullName` (Levenshtein distance ≤ threshold or substring match).
  * Results are sorted by closeness (ascending distance).
  */
 export async function findFuzzyMatches(
   supabase: any,
+  teamId: string,
   fullName: string,
   limit = 5,
   threshold = 4
-): Promise<RosterMember[]> {
+): Promise<TeamMember[]> {
   const { data, error } = await supabase
-    .from('roster_members')
-    .select('id, full_name, email, claimed_user_id')
-    .is('claimed_user_id', null);
+    .from('team_members')
+    .select('id, full_name, email, user_id')
+    .eq('team_id', teamId)
+    .is('user_id', null);
 
   if (error || !data) return [];
 
   const lower = fullName.toLowerCase();
 
-  return (data as RosterMember[])
+  return (data as TeamMember[])
     .map((m) => ({ member: m, dist: levenshtein(lower, m.full_name.toLowerCase()) }))
     .filter(
       ({ member, dist }) =>
@@ -97,37 +101,37 @@ export async function findFuzzyMatches(
 // getAllUnclaimedMembers
 // ---------------------------------------------------------------------------
 /**
- * Returns all unclaimed roster members for the searchable dropdown.
+ * Returns all unclaimed team members for the searchable dropdown.
  */
-export async function getAllUnclaimedMembers(supabase: any): Promise<RosterMember[]> {
+export async function getAllUnclaimedMembers(supabase: any, teamId: string): Promise<TeamMember[]> {
   const { data, error } = await supabase
-    .from('roster_members')
-    .select('id, full_name, email, claimed_user_id')
-    .is('claimed_user_id', null)
+    .from('team_members')
+    .select('id, full_name, email, user_id')
+    .eq('team_id', teamId)
+    .is('user_id', null)
     .order('full_name', { ascending: true });
 
   if (error || !data) return [];
-  return data as RosterMember[];
+  return data as TeamMember[];
 }
 
 // ---------------------------------------------------------------------------
-// linkRosterMember
+// linkTeamMember
 // ---------------------------------------------------------------------------
 /**
- * Claims a roster member entry on behalf of `userId` by setting
- * `claimed_user_id`. Requires the authenticated user to be the one making the
- * call (enforced by RLS as well).
+ * Claims a team member entry on behalf of `userId`. Requires the authenticated user 
+ * to be the one making the call (enforced by RLS as well).
  */
-export async function linkRosterMember(
+export async function linkTeamMember(
   supabase: any,
   userId: string,
-  rosterMemberId: string
+  teamMemberId: string
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
-    .from('roster_members')
-    .update({ claimed_user_id: userId })
-    .eq('id', rosterMemberId)
-    .is('claimed_user_id', null);
+    .from('team_members')
+    .update({ user_id: userId, claimed_at: new Date().toISOString() })
+    .eq('id', teamMemberId)
+    .is('user_id', null);
 
   return { error: error ? error.message : null };
 }

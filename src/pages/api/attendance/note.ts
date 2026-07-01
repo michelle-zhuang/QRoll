@@ -22,9 +22,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const { roster_member_id, date, note, status } = body || {};
-  if (!roster_member_id || !date) {
-    return new Response('Missing roster_member_id or date', { status: 400 });
+  const { team_member_id, date, note, status } = body || {};
+  if (!team_member_id || !date) {
+    return new Response('Missing team_member_id or date', { status: 400 });
   }
 
   // M1: Validate status value
@@ -55,7 +55,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .from('attendance')
     .select('id')
     .eq('event_id', eventId)
-    .eq('roster_member_id', roster_member_id)
+    .eq('team_member_id', team_member_id)
     .maybeSingle();
 
   let targetStatus = status;
@@ -88,7 +88,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         .from('attendance')
         .insert({
           event_id: eventId,
-          roster_member_id,
+          team_member_id,
           status: insertStatus,
           note: noteValue || null,
           checked_in_at: dayStart,

@@ -14,15 +14,17 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const { rosterMemberId, newName, newEmail } = body ?? {};
+  const { teamId, teamMemberId, newName } = body ?? {};
+  if (!teamId) return new Response('Missing teamId', { status: 400 });
 
-  // --- Path A: link to an existing unclaimed roster member ---
-  if (rosterMemberId) {
+  // --- Path A: link to an existing unclaimed team member ---
+  if (teamMemberId) {
     const { error } = await supabase
-      .from('roster_members')
-      .update({ claimed_user_id: session.user.id })
-      .eq('id', rosterMemberId)
-      .is('claimed_user_id', null);
+      .from('team_members')
+      .update({ user_id: session.user.id, claimed_at: new Date().toISOString() })
+      .eq('id', teamMemberId)
+      .eq('team_id', teamId)
+      .is('user_id', null);
 
     if (error) return new Response(error.message, { status: 500 });
     return new Response(JSON.stringify({ ok: true }), {
@@ -31,14 +33,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
-  // --- Path B: create a brand-new roster member and self-claim it ---
+  // --- Path B: create a brand-new team member and self-claim it ---
   if (newName) {
     const { error } = await supabase
-      .from('roster_members')
+      .from('team_members')
       .insert({
+        team_id: teamId,
         full_name: newName.trim(),
         email: session.user.email ?? null,
-        claimed_user_id: session.user.id,
+        user_id: session.user.id,
+        claimed_at: new Date().toISOString(),
       });
 
     if (error) return new Response(error.message, { status: 500 });
@@ -48,5 +52,5 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
-  return new Response('Missing rosterMemberId or newName', { status: 400 });
+  return new Response('Missing teamMemberId or newName', { status: 400 });
 };

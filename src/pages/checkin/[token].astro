@@ -26,14 +26,16 @@ if (!session) return Astro.redirect(`/login?next=/checkin/${token}`);
 // Google (and whose profile trigger ran) also gets the benefit on first visit.
 let { data: event } = await supabase.from('events').select('*').eq('qr_token', token).maybeSingle();
 let nextOccurrence: { title: string; checkin_opens_at: string } | null = null;
+let teamId: string | null = event?.team_id || null;
 
 if (!event) {
   const { data: series } = await supabase
     .from('event_series')
-    .select('id, title')
+    .select('id, title, team_id')
     .eq('qr_token', token)
     .maybeSingle();
   if (series) {
+    teamId = series.team_id;
     const nowIso = new Date().toISOString();
     const { data: active } = await supabase
       .from('events')
@@ -47,6 +49,7 @@ if (!event) {
       .maybeSingle();
     if (active) {
       event = active;
+      teamId = active.team_id;
     } else {
       const { data: next } = await supabase
         .from('events')
@@ -64,14 +67,17 @@ if (!event) {
 
 if (!event && !nextOccurrence) return Astro.redirect('/404');
 
-// Attempt to auto-link this user to a roster member if not already claimed.
-let { data: rosterMember } = await supabase
-  .from('roster_members')
-  .select('id')
-  .eq('claimed_user_id', session.user.id)
-  .maybeSingle();
-
-
+// Attempt to auto-link this user to a team member if not already claimed.
+let teamMember = null;
+if (teamId) {
+  const { data } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  teamMember = data;
+}
 
 // Check if member dashboard is allowed and if user is admin
 const [settingRes, profileRes] = await Promise.all([
@@ -88,21 +94,21 @@ const userFullName =
   session.user.user_metadata?.full_name ||
   session.user.user_metadata?.name ||
   '';
-const showOnboardingCard = !rosterMember;
-const fuzzyMatches = showOnboardingCard
-  ? await findFuzzyMatches(supabase, userFullName)
+const showOnboardingCard = !teamMember;
+const fuzzyMatches = showOnboardingCard && teamId
+  ? await findFuzzyMatches(supabase, teamId, userFullName)
   : [];
-const allUnclaimedMembers = showOnboardingCard
-  ? await getAllUnclaimedMembers(supabase)
+const allUnclaimedMembers = showOnboardingCard && teamId
+  ? await getAllUnclaimedMembers(supabase, teamId)
   : [];
 
 const { data: existing } = event
-  ? rosterMember
+  ? teamMember
     ? await supabase
         .from('attendance')
         .select('*')
         .eq('event_id', event.id)
-        .eq('roster_member_id', rosterMember.id)
+        .eq('team_member_id', teamMember.id)
         .maybeSingle()
     : await supabase
         .from('attendance')
@@ -127,7 +133,7 @@ if (event && Astro.request.method === 'POST' && !existing) {
     message = 'Check-in has not opened yet.';
   } else if (status === 'closed') {
     message = 'Check-in has closed.';
-  } else if (!rosterMember) {
+  } else if (!teamMember) {
     // The onboarding card is shown below — skip the generic error.
   } else {
     const formData = await Astro.request.formData();
@@ -171,7 +177,7 @@ if (event && Astro.request.method === 'POST' && !existing) {
     const { error } = await supabase.from('attendance').insert({
       event_id: event.id,
       user_id: session.user.id,
-      roster_member_id: rosterMember.id,
+      team_member_id: teamMember.id,
       status: status,
       ip_address: ip,
       user_agent: ua,
@@ -269,6 +275,7 @@ const pageTitle = event ? event.title : (nextOccurrence?.title ?? 'Check-in');
             fuzzyMatches={fuzzyMatches}
             allUnclaimed={allUnclaimedMembers}
             redirectTo={`/checkin/${token}`}
+            teamId={teamId || ''}
             client:load
           />
         </div>

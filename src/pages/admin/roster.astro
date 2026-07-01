@@ -12,17 +12,58 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-const [profileRes, rosterRes, profilesRes] = await Promise.all([
+const [profileRes, profilesRes, myCompanyMembershipsRes] = await Promise.all([
   supabase.from('profiles').select('role').eq('id', session.user.id).single(),
-  supabase.from('roster_members').select('*').order('full_name', { ascending: true }),
-  supabase.from('profiles').select('id, email, full_name').order('full_name', { ascending: true })
+  supabase.from('profiles').select('id, email, full_name').order('full_name', { ascending: true }),
+  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id)
 ]);
 
 const profile = profileRes.data;
-if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+const isGlobalAdmin = profile?.role === 'admin';
+const adminCompanyIds = (myCompanyMembershipsRes.data || [])
+  .filter(cm => cm.role === 'admin')
+  .map(cm => cm.company_id);
+
+if (!isGlobalAdmin && adminCompanyIds.length === 0) {
+  return Astro.redirect('/dashboard');
+}
+
+let manageableCompanies = [];
+let manageableTeams = [];
+
+if (isGlobalAdmin) {
+  const [companiesRes, teamsRes] = await Promise.all([
+    supabase.from('companies').select('*').order('name'),
+    supabase.from('teams').select('*').order('name')
+  ]);
+  manageableCompanies = companiesRes.data || [];
+  manageableTeams = teamsRes.data || [];
+} else {
+  const [companiesRes, teamsRes] = await Promise.all([
+    supabase.from('companies').select('*').in('id', adminCompanyIds).order('name'),
+    supabase.from('teams').select('*').in('company_id', adminCompanyIds).order('name')
+  ]);
+  manageableCompanies = companiesRes.data || [];
+  manageableTeams = teamsRes.data || [];
+}
+
+const url = new URL(Astro.request.url);
+let teamId = url.searchParams.get('team_id') || Astro.cookies.get('active_team_id')?.value;
+
+if (url.searchParams.get('team_id')) {
+  Astro.cookies.set('active_team_id', url.searchParams.get('team_id')!, { path: '/' });
+  teamId = url.searchParams.get('team_id')!;
+}
+
+let currentTeam = manageableTeams.find(t => t.id === teamId);
+if (!currentTeam && manageableTeams.length > 0) {
+  currentTeam = manageableTeams[0];
+  teamId = currentTeam.id;
+  Astro.cookies.set('active_team_id', currentTeam.id, { path: '/' });
+}
 
 function toastRedirect(msg: string, type: 'success' | 'error' = 'success') {
-  return Astro.redirect(`/admin/roster?toast=${encodeURIComponent(msg)}&toastType=${type}`);
+  return Astro.redirect(`/admin/roster?team_id=${teamId || ''}&toast=${encodeURIComponent(msg)}&toastType=${type}`);
 }
 
 if (Astro.request.method === 'POST') {
@@ -33,14 +74,15 @@ if (Astro.request.method === 'POST') {
     const full_name = (formData.get('full_name') || '').toString().trim();
     const email = (formData.get('email') || '').toString().trim() || null;
     if (!full_name) return toastRedirect('Name is required', 'error');
-    const res = await supabase.from('roster_members').insert({ full_name, email });
+    if (!teamId) return toastRedirect('A team must be selected to add members', 'error');
+    const res = await supabase.from('team_members').insert({ full_name, email, team_id: teamId });
     return toastRedirect(res.error ? res.error.message : `Added ${full_name}`, res.error ? 'error' : 'success');
   }
   if (action === 'update_email') {
     const id = formData.get('id')?.toString();
     const email = (formData.get('email') || '').toString().trim() || null;
     if (id) {
-      const res = await supabase.from('roster_members').update({ email }).eq('id', id);
+      const res = await supabase.from('team_members').update({ email }).eq('id', id);
       return toastRedirect(
         res.error ? res.error.message : 'Email updated — auto-claim will run when that user signs up',
         res.error ? 'error' : 'success'
@@ -52,8 +94,8 @@ if (Astro.request.method === 'POST') {
     const userId = formData.get('user_id')?.toString() || null;
     if (id) {
       const res = await supabase
-        .from('roster_members')
-        .update({ claimed_user_id: userId })
+        .from('team_members')
+        .update({ user_id: userId })
         .eq('id', id);
       return toastRedirect(
         res.error ? res.error.message : userId ? 'Linked to account' : 'Unlinked from account',
@@ -64,17 +106,28 @@ if (Astro.request.method === 'POST') {
   if (action === 'delete') {
     const id = formData.get('id')?.toString();
     if (id) {
-      const res = await supabase.from('roster_members').delete().eq('id', id);
+      const res = await supabase.from('team_members').delete().eq('id', id);
       return toastRedirect(res.error ? res.error.message : 'Member deleted', res.error ? 'error' : 'success');
     }
   }
 }
 
+const rosterRes = teamId
+  ? await supabase.from('team_members').select('*').eq('team_id', teamId).order('full_name', { ascending: true })
+  : { data: [] };
 const roster = rosterRes.data || [];
 const profiles = profilesRes.data || [];
 
-const claimedCount = (roster || []).filter(r => r.claimed_user_id).length;
+const claimedCount = (roster || []).filter(r => r.user_id).length;
 const unclaimedCount = (roster || []).length - claimedCount;
+
+const teamsWithCompany = manageableTeams.map(team => {
+  const company = manageableCompanies.find(c => c.id === team.company_id);
+  return {
+    ...team,
+    companyName: company ? company.name : 'Unknown Company'
+  };
+});
 ---
 <Layout title="Roster">
   <main class="max-w-5xl mx-auto p-6 md:p-8">
@@ -94,6 +147,30 @@ const unclaimedCount = (roster || []).length - claimedCount;
       </div>
     </div>
 
+    <!-- Team Selector -->
+    {manageableTeams.length > 0 && (
+      <div class="bg-card border border-border rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <h2 class="text-lg font-semibold tracking-tight">Selected Team</h2>
+          <p class="text-xs text-muted-foreground">Manage the roster for a specific team.</p>
+        </div>
+        <form method="get" class="flex items-center gap-2">
+          <select
+            id="team-selector"
+            name="team_id"
+            onchange="this.form.submit()"
+            class="flex h-10 rounded-2xl border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {teamsWithCompany.map(t => (
+              <option value={t.id} selected={t.id === teamId}>
+                {t.companyName} - {t.name}
+              </option>
+            ))}
+          </select>
+        </form>
+      </div>
+    )}
+
     <!-- Add new member -->
     <AstroCard className="p-5 mb-6">
       <form method="post" class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
@@ -106,7 +183,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
           <Label htmlFor="email">Email (optional)</Label>
           <Input id="email" name="email" type="email" placeholder="jane@example.com" />
         </div>
-        <AstroButton type="submit">Add member</AstroButton>
+        <AstroButton type="submit" disabled={!teamId}>Add member</AstroButton>
       </form>
     </AstroCard>
 
@@ -114,7 +191,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
     <AstroCard className="overflow-hidden mb-8">
       <div class="divide-y divide-border">
         {(roster || []).map(m => {
-          const linkedProfile = profiles?.find(p => p.id === m.claimed_user_id);
+          const linkedProfile = profiles?.find(p => p.id === m.user_id);
           return (
             <details class="group border-b border-border last:border-0 [&_summary::-webkit-details-marker]:hidden">
               <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-all duration-200 ease-out hover:pl-5 list-none outline-none focus-visible:bg-muted/40">
@@ -167,7 +244,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
                     >
                       <option value="">— Unlinked —</option>
                       {profiles?.map(p => (
-                        <option value={p.id} selected={m.claimed_user_id === p.id}>
+                        <option value={p.id} selected={m.user_id === p.id}>
                           {p.full_name || p.email}
                         </option>
                       ))}
@@ -189,7 +266,7 @@ const unclaimedCount = (roster || []).length - claimedCount;
           );
         })}
         {(!roster || roster.length === 0) && (
-          <div class="p-12 text-center text-muted-foreground text-sm">No roster members yet.</div>
+          <div class="p-12 text-center text-muted-foreground text-sm">No roster members yet for this team.</div>
         )}
       </div>
     </AstroCard>

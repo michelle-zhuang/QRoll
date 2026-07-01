@@ -11,11 +11,13 @@ type Props = {
   allUnclaimed: RosterMember[];
   /** URL to redirect to after successful linking */
   redirectTo: string;
+  teamId: string;
 };
+
 
 type Tab = 'matches' | 'search' | 'new';
 
-export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }: Props) {
+export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo, teamId }: Props) {
   const [tab, setTab] = useState<Tab>(fuzzyMatches.length > 0 ? 'matches' : 'search');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -40,14 +42,14 @@ export function RosterOnboardingCard({ fuzzyMatches, allUnclaimed, redirectTo }:
     let body: Record<string, string>;
     if (tab === 'new') {
       if (!newName.trim()) { setError('Name is required.'); setLoading(false); return; }
-      body = { newName };
+      body = { teamId, newName };
     } else {
       if (!selectedId) { setError('Please select a roster member.'); setLoading(false); return; }
-      body = { rosterMemberId: selectedId };
+      body = { teamId, teamMemberId: selectedId };
     }
 
     try {
-      const res = await fetch('/api/roster/link', {
+      const res = await fetch('/api/team-members/link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

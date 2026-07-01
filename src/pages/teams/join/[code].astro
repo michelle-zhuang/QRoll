@@ -1,0 +1,160 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { createSupabaseClient } from '../../../lib/supabase';
+import AstroCard from '../../../components/AstroCard.astro';
+import AstroButton from '../../../components/AstroButton.astro';
+import { ArrowLeft, UserPlus, AlertCircle, Sparkles } from 'lucide-react';
+
+const { code } = Astro.params;
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+
+// If not logged in, redirect to login, preserving the join URL so they return here
+if (!session) {
+  return Astro.redirect(`/login?redirectTo=${encodeURIComponent(Astro.url.pathname)}`);
+}
+
+// Fetch team and company details
+const { data: team, error: fetchError } = await supabase
+  .from('teams')
+  .select('*, companies(name)')
+  .eq('invite_code', code)
+  .single();
+
+let errorMsg = '';
+let alreadyJoined = false;
+
+if (team) {
+  // Check if they are already in the team
+  const { data: existingMember } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('team_id', team.id)
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  
+  if (existingMember) {
+    alreadyJoined = true;
+  }
+}
+
+if (Astro.request.method === 'POST' && team && !alreadyJoined) {
+  // 1. Join company (ON CONFLICT DO NOTHING)
+  const { error: companyJoinError } = await supabase
+    .from('company_members')
+    .upsert(
+      { company_id: team.company_id, user_id: session.user.id, role: 'member' },
+      { onConflict: 'company_id,user_id', ignoreDuplicates: true }
+    );
+
+  if (companyJoinError) {
+    errorMsg = companyJoinError.message;
+  } else {
+    // 2. Check if there's an unclaimed roster entry for this email in this team
+    const { data: existingEmailMember } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('team_id', team.id)
+      .eq('email', session.user.email)
+      .maybeSingle();
+
+    if (existingEmailMember) {
+      // Claim the existing entry
+      const { error: claimError } = await supabase
+        .from('team_members')
+        .update({ user_id: session.user.id, claimed_at: new Date().toISOString() })
+        .eq('id', existingEmailMember.id);
+      
+      if (claimError) {
+        errorMsg = claimError.message;
+      } else {
+        return Astro.redirect(`/dashboard?team_id=${team.id}`);
+      }
+    } else {
+      // Insert a new claimed entry
+      const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Member';
+      const { error: insertError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          full_name: name,
+          email: session.user.email,
+          user_id: session.user.id,
+          claimed_at: new Date().toISOString()
+        });
+      
+      if (insertError) {
+        errorMsg = insertError.message;
+      } else {
+        return Astro.redirect(`/dashboard?team_id=${team.id}`);
+      }
+    }
+  }
+}
+---
+
+<Layout title="Join Team">
+  <main class="max-w-md mx-auto p-6 md:p-8 min-h-[80vh] flex flex-col justify-center">
+    <a href="/dashboard" class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 mb-6 text-sm transition-colors">
+      <ArrowLeft className="w-4 h-4" />
+      Back to dashboard
+    </a>
+
+    {!team || fetchError ? (
+      <AstroCard className="p-6 text-center border-red-200">
+        <div class="p-3 rounded-full bg-red-50 text-red-500 w-fit mx-auto mb-4 border border-red-100">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h1 class="text-xl font-semibold tracking-tight">Invalid Invite Code</h1>
+        <p class="text-sm text-muted-foreground mt-2 leading-relaxed">
+          This invite code doesn't exist, is expired, or has been revoked. Please check the link and try again.
+        </p>
+      </AstroCard>
+    ) : (
+      <AstroCard className="p-6 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-4 opacity-10">
+          <Sparkles className="w-24 h-24 text-primary" />
+        </div>
+
+        <div class="text-center mb-6">
+          <div class="p-3.5 rounded-full bg-primary/10 text-primary w-fit mx-auto mb-4 border border-primary/20">
+            <UserPlus className="w-7 h-7" />
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight">You're Invited!</h1>
+          <p class="text-sm text-muted-foreground mt-1.5">
+            To join a team on QRoll
+          </p>
+        </div>
+
+        <div class="bg-muted/40 border border-border/60 rounded-2xl p-5 mb-6 text-center">
+          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Team Invitation</p>
+          <h2 class="text-xl font-bold text-foreground mt-1.5">{team.name}</h2>
+          <p class="text-sm text-muted-foreground mt-1">at {(team.companies as any)?.name}</p>
+        </div>
+
+        {errorMsg && (
+          <div class="p-3 mb-4 text-xs text-red-500 bg-red-50 rounded-xl border border-red-100">
+            {errorMsg}
+          </div>
+        )}
+
+        {alreadyJoined ? (
+          <div class="space-y-4">
+            <div class="p-3.5 text-sm text-center text-emerald-700 bg-emerald-50 rounded-xl border border-emerald-100">
+              You are already a member of this team.
+            </div>
+            <a href={`/dashboard?team_id=${team.id}`} class="block">
+              <AstroButton className="w-full">Go to Dashboard</AstroButton>
+            </a>
+          </div>
+        ) : (
+          <form method="post">
+            <AstroButton type="submit" className="w-full h-11 text-sm font-semibold">
+              Accept Invite & Join
+            </AstroButton>
+          </form>
+        )}
+      </AstroCard>
+    )}
+  </main>
+</Layout>

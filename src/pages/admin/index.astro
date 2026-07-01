@@ -8,14 +8,55 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-const [profileRes, settingRes, eventsRes] = await Promise.all([
+const [profileRes, settingRes, myCompanyMembershipsRes] = await Promise.all([
   supabase.from('profiles').select('role, full_name, email').eq('id', session.user.id).single(),
   supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle(),
-  supabase.from('events').select('*').order('created_at', { ascending: false })
+  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id)
 ]);
 
 const profile = profileRes.data;
-if (profile?.role !== 'admin') return Astro.redirect('/dashboard');
+const isGlobalAdmin = profile?.role === 'admin';
+const adminCompanyIds = (myCompanyMembershipsRes.data || [])
+  .filter(cm => cm.role === 'admin')
+  .map(cm => cm.company_id);
+
+if (!isGlobalAdmin && adminCompanyIds.length === 0) {
+  return Astro.redirect('/dashboard');
+}
+
+let manageableCompanies = [];
+let manageableTeams = [];
+
+if (isGlobalAdmin) {
+  const [companiesRes, teamsRes] = await Promise.all([
+    supabase.from('companies').select('*').order('name'),
+    supabase.from('teams').select('*').order('name')
+  ]);
+  manageableCompanies = companiesRes.data || [];
+  manageableTeams = teamsRes.data || [];
+} else {
+  const [companiesRes, teamsRes] = await Promise.all([
+    supabase.from('companies').select('*').in('id', adminCompanyIds).order('name'),
+    supabase.from('teams').select('*').in('company_id', adminCompanyIds).order('name')
+  ]);
+  manageableCompanies = companiesRes.data || [];
+  manageableTeams = teamsRes.data || [];
+}
+
+const url = new URL(Astro.request.url);
+let teamId = url.searchParams.get('team_id') || Astro.cookies.get('active_team_id')?.value;
+
+if (url.searchParams.get('team_id')) {
+  Astro.cookies.set('active_team_id', url.searchParams.get('team_id')!, { path: '/' });
+  teamId = url.searchParams.get('team_id')!;
+}
+
+let currentTeam = manageableTeams.find(t => t.id === teamId);
+if (!currentTeam && manageableTeams.length > 0) {
+  currentTeam = manageableTeams[0];
+  teamId = currentTeam.id;
+  Astro.cookies.set('active_team_id', currentTeam.id, { path: '/' });
+}
 
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
@@ -31,7 +72,18 @@ if (Astro.request.method === 'POST') {
 const setting = settingRes?.data;
 const allowMemberDashboard = setting ? (setting.value === true || setting.value === 'true') : false;
 
+const eventsRes = teamId
+  ? await supabase.from('events').select('*').eq('team_id', teamId).order('created_at', { ascending: false })
+  : { data: [] };
 const events = eventsRes.data || [];
+
+const teamsWithCompany = manageableTeams.map(team => {
+  const company = manageableCompanies.find(c => c.id === team.company_id);
+  return {
+    ...team,
+    companyName: company ? company.name : 'Unknown Company'
+  };
+});
 ---
 <Layout title="Admin Dashboard">
   <main class="max-w-5xl mx-auto p-6 md:p-8">
@@ -55,6 +107,30 @@ const events = eventsRes.data || [];
         </a>
       </div>
     </div>
+
+    <!-- Team Selector -->
+    {manageableTeams.length > 0 && (
+      <div class="bg-card border border-border rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <h2 class="text-lg font-semibold tracking-tight">Active Team</h2>
+          <p class="text-xs text-muted-foreground">Manage events and attendance for a specific team.</p>
+        </div>
+        <form method="get" class="flex items-center gap-2">
+          <select
+            id="team-selector"
+            name="team_id"
+            onchange="this.form.submit()"
+            class="flex h-10 rounded-2xl border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {teamsWithCompany.map(t => (
+              <option value={t.id} selected={t.id === teamId}>
+                {t.companyName} - {t.name}
+              </option>
+            ))}
+          </select>
+        </form>
+      </div>
+    )}
 
     <!-- Global App Settings Section -->
     <div class="bg-card border border-border rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

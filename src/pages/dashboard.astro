@@ -13,12 +13,40 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-// Pull profile + all events + roster + attendance + settings in parallel to reduce sequential database round-trips!
+let selectedTeamId = Astro.cookies.get('qroll_team_id')?.value || null;
+let selectedCompanyId = Astro.cookies.get('qroll_company_id')?.value || null;
+
+// Query the user's teams to make sure they have a valid team selected, and to get all their teams
+const { data: memberships } = await supabase
+  .from('team_members')
+  .select('team_id, teams (id, company_id)')
+  .eq('user_id', session.user.id);
+
+if (memberships && memberships.length > 0) {
+  const teamIds = memberships.map((m: any) => m.team_id);
+  if (!selectedTeamId || !teamIds.includes(selectedTeamId)) {
+    selectedTeamId = memberships[0].team_id;
+    const firstTeam = memberships[0].teams as any;
+    selectedCompanyId = firstTeam?.company_id || null;
+    if (selectedTeamId) Astro.cookies.set('qroll_team_id', selectedTeamId, { path: '/' });
+    if (selectedCompanyId) {
+      Astro.cookies.set('qroll_company_id', selectedCompanyId, { path: '/' });
+    }
+  } else {
+    const found = memberships.find((m: any) => m.team_id === selectedTeamId);
+    selectedCompanyId = found ? (found.teams as any)?.company_id : null;
+  }
+} else {
+  // If they have no teams, redirect to companies page to join/create a company
+  return Astro.redirect('/companies');
+}
+
+// Pull profile + all events + roster (team_members) + attendance + settings in parallel to reduce sequential database round-trips!
 const [profileRes, eventsRes, rosterRes, attendanceRes, settingRes] = await Promise.all([
   supabase.from('profiles').select('*').eq('id', session.user.id).single(),
-  supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').order('starts_at', { ascending: true }),
-  supabase.from('roster_members').select('id, full_name, claimed_user_id').order('full_name', { ascending: true }),
-  supabase.from('attendance').select('event_id, roster_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
+  supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').eq('team_id', selectedTeamId).order('starts_at', { ascending: true }),
+  supabase.from('team_members').select('id, full_name, user_id').eq('team_id', selectedTeamId).order('full_name', { ascending: true }),
+  supabase.from('attendance').select('event_id, team_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
   supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle()
 ]);
 
@@ -36,7 +64,17 @@ if (!profile) {
   if (!error) profile = newProfile;
 }
 
-const isAdmin = profile?.role === 'admin';
+// Company-scoped admin check
+let isAdmin = false;
+if (selectedCompanyId) {
+  const { data: member } = await supabase
+    .from('company_members')
+    .select('role')
+    .eq('company_id', selectedCompanyId)
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  isAdmin = member?.role === 'admin';
+}
 
 const events = eventsRes.data || [];
 const roster = rosterRes.data || [];
@@ -45,9 +83,7 @@ const setting = settingRes?.data;
 const allowMemberDashboard = setting ? (setting.value === true || setting.value === 'true') : false;
 const isRestricted = !isAdmin && !allowMemberDashboard;
 
-
-
-const linkedMember = roster.find(m => m.claimed_user_id === session.user.id);
+const linkedMember = roster.find(m => m.user_id === session.user.id);
 const displayName = linkedMember?.full_name || profile?.full_name || profile?.email || session.user.email;
 
 // Map event_id -> ISO date (YYYY-MM-DD) using starts_at in America/Los_Angeles timezone
@@ -75,17 +111,17 @@ const dates = [...datesSet].sort();
 
 const nowStr = new Date().toISOString();
 
-// Group existing attendance by roster_member_id and event_id for fast lookup
+// Group existing attendance by team_member_id and event_id for fast lookup
 const attendanceMap = new Map<string, typeof attendance[0]>();
 attendance.forEach(a => {
-  if (a.roster_member_id) {
-    attendanceMap.set(`${a.roster_member_id}:${a.event_id}`, a);
+  if (a.team_member_id) {
+    attendanceMap.set(`${a.team_member_id}:${a.event_id}`, a);
   }
 });
 
 const filteredRoster = isAdmin
   ? roster
-  : roster.filter(m => m.claimed_user_id === session.user.id);
+  : roster.filter(m => m.user_id === session.user.id);
 
 // Build matrix data, generating 'absent' in-memory for missing records of closed events
 const recordsByMember: Record<string, AttendanceRecord[]> = {};

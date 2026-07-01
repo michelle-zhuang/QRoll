@@ -1,0 +1,138 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { createSupabaseClient } from '../../lib/supabase';
+import AstroCard from '../../components/AstroCard.astro';
+import AstroButton from '../../components/AstroButton.astro';
+import AstroBadge from '../../components/AstroBadge.astro';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { ArrowLeft, Plus, Building2 } from 'lucide-react';
+
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+let errorMsg = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const name = (formData.get('name') || '').toString().trim();
+  if (!name) {
+    errorMsg = 'Name is required';
+  } else {
+    // Basic slugify
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `company-${Date.now()}`;
+    const { data: newCompany, error: createError } = await supabase
+      .from('companies')
+      .insert({ name, slug, created_by: session.user.id })
+      .select()
+      .single();
+    
+    if (createError) {
+      errorMsg = createError.message;
+    } else if (newCompany) {
+      // Creator becomes admin of the company
+      const { error: cmError } = await supabase
+        .from('company_members')
+        .insert({ company_id: newCompany.id, user_id: session.user.id, role: 'admin' });
+      
+      if (cmError) {
+        errorMsg = cmError.message;
+      } else {
+        return Astro.redirect(`/companies/${newCompany.slug}`);
+      }
+    }
+  }
+}
+
+// Fetch all companies and user's company memberships in parallel
+const [companiesRes, membershipsRes] = await Promise.all([
+  supabase.from('companies').select('*').order('name'),
+  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id)
+]);
+
+const companies = companiesRes.data || [];
+const memberships = membershipsRes.data || [];
+const myCompanyIds = new Set(memberships.map(m => m.company_id));
+const myRoleMap = new Map(memberships.map(m => [m.company_id, m.role]));
+---
+
+<Layout title="Companies">
+  <main class="max-w-5xl mx-auto p-6 md:p-8">
+    <a href="/dashboard" class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 mb-6 text-sm transition-colors">
+      <ArrowLeft className="w-4 h-4" />
+      Back to dashboard
+    </a>
+
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-semibold tracking-tight">Companies</h1>
+        <p class="text-muted-foreground mt-1 text-sm">Browse, join or create companies and teams.</p>
+      </div>
+    </div>
+
+    {errorMsg && (
+      <div class="p-4 mb-6 text-sm text-red-500 bg-red-50 rounded-2xl border border-red-200">
+        {errorMsg}
+      </div>
+    )}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      <!-- Create Company Form -->
+      <div class="md:col-span-1">
+        <AstroCard className="p-5 sticky top-6">
+          <h2 class="text-lg font-semibold tracking-tight mb-4">Create a Company</h2>
+          <form method="post" class="space-y-4">
+            <div class="space-y-1.5">
+              <Label htmlFor="name">Company Name</Label>
+              <Input id="name" name="name" required placeholder="Acme Inc." />
+            </div>
+            <AstroButton type="submit" className="w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Company
+            </AstroButton>
+          </form>
+        </AstroCard>
+      </div>
+
+      <!-- Companies List -->
+      <div class="md:col-span-2 space-y-4">
+        <h2 class="text-lg font-semibold tracking-tight">Browse Companies</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {companies.map(c => {
+            const isMember = myCompanyIds.has(c.id);
+            const role = myRoleMap.get(c.id);
+            return (
+              <a href={`/companies/${c.slug}`} class="block group">
+                <AstroCard className="p-5 h-full hover:border-primary/50 hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                  <div>
+                    <div class="flex items-start justify-between gap-2 mb-3">
+                      <div class="p-2.5 rounded-xl bg-accent/20 text-accent-foreground">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      {isMember && (
+                        <AstroBadge variant={role === 'admin' ? 'default' : 'secondary'}>
+                          {role === 'admin' ? 'Admin' : 'Member'}
+                        </AstroBadge>
+                      )}
+                    </div>
+                    <h3 class="font-semibold text-base truncate group-hover:text-primary transition-colors">{c.name}</h3>
+                    <p class="text-xs text-muted-foreground mt-1">/{c.slug}</p>
+                  </div>
+                  <div class="text-xs font-medium text-primary mt-4 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    View Company Details &rarr;
+                  </div>
+                </AstroCard>
+              </a>
+            );
+          })}
+          {companies.length === 0 && (
+            <div class="col-span-full p-12 text-center text-muted-foreground text-sm border rounded-2xl bg-card">
+              No companies created yet. Be the first to create one!
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>

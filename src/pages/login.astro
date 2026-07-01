@@ -5,6 +5,29 @@ import AstroCard from '../components/AstroCard.astro';
 import { EmailAuthForm } from '../components/EmailAuthForm';
 import { FcGoogle } from 'react-icons/fc';
 import PartyBackground from '../components/PartyBackground.astro';
+import { createSupabaseClient } from '../lib/supabase';
+
+const supabase = createSupabaseClient(Astro.cookies);
+const { data: { session } } = await supabase.auth.getSession();
+
+if (session) {
+  const { data: memberships } = await supabase
+    .from('team_members')
+    .select('team_id, teams (id, company_id)')
+    .eq('user_id', session.user.id);
+
+  if (memberships && memberships.length > 0) {
+    const t = memberships[0];
+    const teamObj = t.teams as any;
+    if (t.team_id) Astro.cookies.set('qroll_team_id', t.team_id, { path: '/' });
+    if (teamObj?.company_id) {
+      Astro.cookies.set('qroll_company_id', teamObj.company_id, { path: '/' });
+    }
+    return Astro.redirect('/dashboard');
+  } else {
+    return Astro.redirect('/companies');
+  }
+}
 
 const next = Astro.url.searchParams.get('next') || '/dashboard';
 const signinUrl = `/api/auth/signin?next=${encodeURIComponent(next)}`;

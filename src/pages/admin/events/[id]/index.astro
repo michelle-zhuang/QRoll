@@ -21,16 +21,28 @@ const supabase = createSupabaseClient(Astro.cookies);
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');
 
-// Fetch profile + event + attendance + roster in parallel to minimize sequential database calls!
-const [profileRes, eventRes, attendanceRes, rosterRes] = await Promise.all([
+// Fetch profile + event + company memberships first
+const [profileRes, eventRes, myCompanyMembershipsRes] = await Promise.all([
   supabase.from('profiles').select('role').eq('id', session.user.id).single(),
   supabase.from('events').select('*').eq('id', id).single(),
-  supabase.from('attendance').select('*, profiles(full_name, email), roster_members(full_name, email)').eq('event_id', id),
-  supabase.from('roster_members').select('*')
+  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id)
 ]);
 
+const event = eventRes.data;
+if (!event) return Astro.redirect('/admin');
+
 const profile = profileRes.data;
-if (!profile || profile.role !== 'admin') {
+const isGlobalAdmin = profile?.role === 'admin';
+
+// Get company of the event team
+const { data: teamData } = await supabase.from('teams').select('company_id').eq('id', event.team_id).single();
+const eventCompanyId = teamData?.company_id;
+
+const isCompanyAdmin = (myCompanyMembershipsRes.data || []).some(
+  cm => cm.company_id === eventCompanyId && cm.role === 'admin'
+);
+
+if (!isGlobalAdmin && !isCompanyAdmin) {
   return Astro.redirect('/dashboard');
 }
 
@@ -42,14 +54,17 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const event = eventRes.data;
-if (!event) return Astro.redirect('/admin');
+// Fetch attendance (joining team_members instead of roster_members) and team roster
+const [attendanceRes, rosterRes] = await Promise.all([
+  supabase.from('attendance').select('*, profiles(full_name, email), team_members(full_name, email)').eq('event_id', id),
+  supabase.from('team_members').select('*').eq('team_id', event.team_id)
+]);
 
 const roster = rosterRes.data || [];
 const rawAttendance = attendanceRes.data || [];
 
 const isClosed = event.checkin_closes_at && new Date(event.checkin_closes_at) < new Date() && !event.cancelled_at;
-const attendedRosterIds = new Set(rawAttendance.map(a => a.roster_member_id));
+const attendedRosterIds = new Set(rawAttendance.map(a => a.team_member_id));
 
 const attendance = [...rawAttendance];
 if (isClosed) {
@@ -58,11 +73,11 @@ if (isClosed) {
       attendance.push({
         id: `mock-absent-${m.id}`,
         event_id: id,
-        roster_member_id: m.id,
+        team_member_id: m.id,
         status: 'absent',
         note: null,
         checked_in_at: null,
-        roster_members: m,
+        team_members: m,
         profiles: null
       } as any);
     }
@@ -218,7 +233,7 @@ const checkinUrl = event.qr_token ? `${Astro.url.origin}/checkin/${event.qr_toke
           </TableHeader>
           <TableBody>
             {attendance?.map(record => {
-              const roster = (record.roster_members as any);
+              const roster = (record.team_members as any);
               const profileRow = (record.profiles as any);
               const name = roster?.full_name || profileRow?.full_name || 'Anonymous user';
               const email = roster?.email || profileRow?.email;
