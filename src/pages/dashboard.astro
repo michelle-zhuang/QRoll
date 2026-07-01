@@ -116,11 +116,20 @@ if (!isRestricted) {
   
   const eventIds = events.map(e => e.id);
   if (eventIds.length > 0) {
-    const { data: attendanceData } = await supabase
-      .from('attendance')
-      .select('event_id, team_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters')
-      .in('event_id', eventIds);
-    attendance = attendanceData || [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data: attendanceData, error } = await supabase
+        .from('attendance')
+        .select('event_id, team_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters')
+        .in('event_id', eventIds)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+      if (error || !attendanceData || attendanceData.length === 0) break;
+      attendance.push(...attendanceData);
+      if (attendanceData.length < pageSize) break;
+      page++;
+    }
   }
 }
 
