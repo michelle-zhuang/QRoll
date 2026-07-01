@@ -16,38 +16,11 @@ if (!session) return Astro.redirect('/login');
 let selectedTeamId = Astro.cookies.get('qroll_team_id')?.value || null;
 let selectedCompanyId = Astro.cookies.get('qroll_company_id')?.value || null;
 
-// Query the user's teams to make sure they have a valid team selected, and to get all their teams
-const { data: memberships } = await supabase
-  .from('team_members')
-  .select('team_id, teams (id, company_id)')
-  .eq('user_id', session.user.id);
-
-if (memberships && memberships.length > 0) {
-  const teamIds = memberships.map((m: any) => m.team_id);
-  if (!selectedTeamId || !teamIds.includes(selectedTeamId)) {
-    selectedTeamId = memberships[0].team_id;
-    const firstTeam = memberships[0].teams as any;
-    selectedCompanyId = firstTeam?.company_id || null;
-    if (selectedTeamId) Astro.cookies.set('qroll_team_id', selectedTeamId, { path: '/' });
-    if (selectedCompanyId) {
-      Astro.cookies.set('qroll_company_id', selectedCompanyId, { path: '/' });
-    }
-  } else {
-    const found = memberships.find((m: any) => m.team_id === selectedTeamId);
-    selectedCompanyId = found ? (found.teams as any)?.company_id : null;
-  }
-} else {
-  // If they have no teams, redirect to companies page to join/create a company
-  return Astro.redirect('/companies');
-}
-
-// Pull profile + all events + roster (team_members) + attendance + settings in parallel to reduce sequential database round-trips!
-const [profileRes, eventsRes, rosterRes, attendanceRes, settingRes] = await Promise.all([
-  supabase.from('profiles').select('*').eq('id', session.user.id).single(),
-  supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').eq('team_id', selectedTeamId).order('starts_at', { ascending: true }),
-  supabase.from('team_members').select('id, full_name, user_id').eq('team_id', selectedTeamId).order('full_name', { ascending: true }),
-  supabase.from('attendance').select('event_id, team_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
-  supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle()
+// 1. Initial parallel query to resolve user profile and team access scope
+const [profileRes, memberTeamsRes, adminCompaniesRes] = await Promise.all([
+  supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle(),
+  supabase.from('team_members').select('team_id, teams (id, name, company_id)').eq('user_id', session.user.id),
+  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id).eq('role', 'admin')
 ]);
 
 let profile = profileRes.data;
@@ -63,6 +36,64 @@ if (!profile) {
     .single();
   if (!error) profile = newProfile;
 }
+
+const memberTeams = memberTeamsRes.data || [];
+const adminCompanies = adminCompaniesRes.data || [];
+const isGlobalAdmin = profile?.role === 'admin';
+
+// 2. Fetch teams for companies they admin
+let adminTeams: any[] = [];
+if (isGlobalAdmin) {
+  const { data } = await supabase.from('teams').select('id, name, company_id');
+  adminTeams = data || [];
+} else if (adminCompanies.length > 0) {
+  const { data } = await supabase
+    .from('teams')
+    .select('id, name, company_id')
+    .in('company_id', adminCompanies.map(c => c.company_id));
+  adminTeams = data || [];
+}
+
+// 3. Resolve all accessible teams
+const accessibleTeamsMap = new Map<string, { id: string; name: string; company_id: string }>();
+memberTeams.forEach((m: any) => {
+  if (m.teams) {
+    accessibleTeamsMap.set(m.teams.id, {
+      id: m.teams.id,
+      name: m.teams.name,
+      company_id: m.teams.company_id
+    });
+  }
+});
+adminTeams.forEach((t: any) => {
+  accessibleTeamsMap.set(t.id, t);
+});
+
+const accessibleTeams = [...accessibleTeamsMap.values()];
+
+if (accessibleTeams.length > 0) {
+  const teamIds = accessibleTeams.map(t => t.id);
+  if (!selectedTeamId || !teamIds.includes(selectedTeamId)) {
+    selectedTeamId = accessibleTeams[0].id;
+    selectedCompanyId = accessibleTeams[0].company_id;
+    Astro.cookies.set('qroll_team_id', selectedTeamId, { path: '/' });
+    Astro.cookies.set('qroll_company_id', selectedCompanyId, { path: '/' });
+  } else {
+    const found = accessibleTeams.find(t => t.id === selectedTeamId);
+    selectedCompanyId = found ? found.company_id : null;
+  }
+} else {
+  // If they have no teams, redirect to companies page to join/create a company
+  return Astro.redirect('/companies');
+}
+
+// 4. Pull all events + roster (team_members) + attendance + settings in parallel
+const [eventsRes, rosterRes, attendanceRes, settingRes] = await Promise.all([
+  supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').eq('team_id', selectedTeamId).order('starts_at', { ascending: true }),
+  supabase.from('team_members').select('id, full_name, user_id').eq('team_id', selectedTeamId).order('full_name', { ascending: true }),
+  supabase.from('attendance').select('event_id, team_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
+  supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle()
+]);
 
 // Company-scoped admin check
 let isAdmin = false;
