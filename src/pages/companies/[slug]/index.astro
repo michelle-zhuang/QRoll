@@ -106,7 +106,7 @@ const members = membersRes.data || [];
       </div>
     )}
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Teams Column -->
       <div class={isAdmin ? "lg:col-span-2 space-y-6" : "lg:col-span-3 space-y-6"}>
         <div class="flex items-center justify-between">
@@ -140,7 +140,7 @@ const members = membersRes.data || [];
           </AstroCard>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))">
           {teams.map(t => (
             <AstroCard className="p-5 flex flex-col justify-between hover:shadow-md transition-all duration-200">
               <div>
