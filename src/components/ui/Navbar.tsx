@@ -65,14 +65,12 @@ export const Navbar = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const links: NavLink[] = [
+  const links: NavLink[] = role === "admin" ? [
     { href: "/dashboard", label: "Dashboard" },
-    ...(role === "admin" ? [
-      { href: "/admin", label: "Events" },
-      { href: "/admin/roster", label: "Roster" },
-      { href: "/admin/users", label: "Staff & Admins" }
-    ] : [])
-  ].filter(() => role !== "guest");
+    { href: "/admin", label: "Events" },
+    { href: "/admin/roster", label: "Roster" },
+    { href: "/admin/users", label: "Staff & Admins" }
+  ] : [];
 
   const isActive = (href: string) =>
     href === "/dashboard"

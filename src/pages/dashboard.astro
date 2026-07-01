@@ -87,17 +87,9 @@ if (accessibleTeams.length > 0) {
   return Astro.redirect('/companies');
 }
 
-// 4. Pull all events + roster (team_members) + attendance + settings in parallel
-const [eventsRes, rosterRes, attendanceRes, settingRes] = await Promise.all([
-  supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').eq('team_id', selectedTeamId).order('starts_at', { ascending: true }),
-  supabase.from('team_members').select('id, full_name, user_id').eq('team_id', selectedTeamId).order('full_name', { ascending: true }),
-  supabase.from('attendance').select('event_id, team_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters'),
-  supabase.from('app_settings').select('value').eq('key', 'allow_member_dashboard').maybeSingle()
-]);
-
 // Company-scoped admin check
-let isAdmin = false;
-if (selectedCompanyId) {
+let isAdmin = isGlobalAdmin;
+if (!isAdmin && selectedCompanyId) {
   const { data: member } = await supabase
     .from('company_members')
     .select('role')
@@ -107,12 +99,30 @@ if (selectedCompanyId) {
   isAdmin = member?.role === 'admin';
 }
 
-const events = eventsRes.data || [];
-const roster = rosterRes.data || [];
-const attendance = attendanceRes.data || [];
-const setting = settingRes?.data;
-const allowMemberDashboard = setting ? (setting.value === true || setting.value === 'true') : false;
-const isRestricted = !isAdmin && !allowMemberDashboard;
+const isRestricted = !isAdmin;
+
+let events: any[] = [];
+let roster: any[] = [];
+let attendance: any[] = [];
+
+if (!isRestricted) {
+  const [eventsRes, rosterRes] = await Promise.all([
+    supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').eq('team_id', selectedTeamId).order('starts_at', { ascending: true }),
+    supabase.from('team_members').select('id, full_name, user_id').eq('team_id', selectedTeamId).order('full_name', { ascending: true })
+  ]);
+  
+  events = eventsRes.data || [];
+  roster = rosterRes.data || [];
+  
+  const eventIds = events.map(e => e.id);
+  if (eventIds.length > 0) {
+    const { data: attendanceData } = await supabase
+      .from('attendance')
+      .select('event_id, team_member_id, status, note, checked_in_at, verification_status, verification_method, calculated_distance_meters')
+      .in('event_id', eventIds);
+    attendance = attendanceData || [];
+  }
+}
 
 const linkedMember = roster.find(m => m.user_id === session.user.id);
 const displayName = linkedMember?.full_name || profile?.full_name || profile?.email || session.user.email;
