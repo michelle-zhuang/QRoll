@@ -16,6 +16,16 @@ export interface AttendanceMember {
   records: AttendanceRecord[];
 }
 
+export interface AttendeeStat {
+  id: string;
+  name: string;
+  present: number;
+  late: number;
+  absent: number;
+  total: number;
+  attendanceRate: number;
+}
+
 export interface AttendanceData {
   dates: string[];
   attendees: AttendanceMember[];

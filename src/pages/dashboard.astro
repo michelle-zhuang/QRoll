@@ -6,7 +6,8 @@ import AstroBadge from '../components/AstroBadge.astro';
 import AstroButton from '../components/AstroButton.astro';
 import { AttendanceMatrix } from '../components/AttendanceMatrix';
 import { PerEventStackedBars, TopAttendeesChart } from '../components/DashboardCharts';
-import type { AttendanceData, AttendanceStatus, AttendanceRecord } from '../lib/attendanceTypes';
+import LeaderboardModal from '../components/LeaderboardModal';
+import type { AttendanceData, AttendanceStatus, AttendanceRecord, AttendeeStat } from '../lib/attendanceTypes';
 import { Users, Calendar } from 'lucide-react';
 
 const supabase = createSupabaseClient(Astro.cookies);
@@ -224,15 +225,6 @@ const data: AttendanceData = {
 };
 
 // Stats
-type AttendeeStat = {
-  id: string;
-  name: string;
-  present: number;
-  late: number;
-  absent: number;
-  total: number;
-  attendanceRate: number;
-};
 const stats: AttendeeStat[] = data.attendees.map(a => {
   const present = a.records.filter(r => r.status === 'present').length;
   const late = a.records.filter(r => r.status === 'late').length;
@@ -248,12 +240,15 @@ const totalAbsent = stats.reduce((s, a) => s + a.absent, 0);
 const totalRecords = totalPresent + totalLate + totalAbsent;
 const onTimeRate = totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0;
 
-const topAttendees = [...stats].sort((a, b) => (b.present + b.late) - (a.present + a.late)).slice(0, 8);
-const leastAttendees = [...stats]
-  .filter(s => s.total > 0)
-  .sort((a, b) => (a.present + a.late) - (b.present + b.late))
-  .slice(0, 5);
-const mostLate = [...stats].filter(s => s.late > 0).sort((a, b) => b.late - a.late).slice(0, 5);
+// Ranked lists shared by the preview widgets and the "View all" modals,
+// so both always show the same members in the same order.
+const rankedTopAttendees = [...stats].sort((a, b) => (b.present + b.late) - (a.present + a.late));
+const rankedLeastActive = [...stats].filter(s => s.total > 0).sort((a, b) => (a.present + a.late) - (b.present + b.late));
+const rankedMostLate = [...stats].filter(s => s.late > 0).sort((a, b) => b.late - a.late);
+
+const topAttendees = rankedTopAttendees.slice(0, 8);
+const leastAttendees = rankedLeastActive.slice(0, 5);
+const mostLate = rankedMostLate.slice(0, 5);
 
 const perEventStats = dates.map(d => {
   let p = 0, l = 0, ab = 0;
@@ -394,7 +389,16 @@ const hasData = filteredRoster.length > 0 && events.length > 0;
                       <h2 class="text-lg font-semibold tracking-tight">Top attendees</h2>
                       <p class="text-xs text-muted-foreground mt-0.5">Stacked: present / late / absent</p>
                     </div>
-                    <AstroBadge variant="secondary">{roster.length} total</AstroBadge>
+                    <div class="flex items-center gap-2">
+                      <AstroBadge variant="secondary">{roster.length} total</AstroBadge>
+                      <LeaderboardModal
+                        title="Top attendees"
+                        description="All members sorted by attendance count"
+                        rows={rankedTopAttendees}
+                        variant="top"
+                        client:load
+                      />
+                    </div>
                   </div>
                   <TopAttendeesChart data={topAttendees.map(a => ({ name: a.name, present: a.present, late: a.late, absent: a.absent }))} client:load />
                 </AstroCard>
@@ -414,9 +418,18 @@ const hasData = filteredRoster.length > 0 && events.length > 0;
               <AstroCard className="p-6 mb-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
                   <div class="border-b md:border-b-0 md:border-r border-border pb-6 md:pb-0 md:pr-8">
-                    <div class="mb-5">
-                      <h2 class="text-lg font-semibold tracking-tight">Least active</h2>
-                      <p class="text-xs text-muted-foreground mt-0.5">Lowest attendance count</p>
+                    <div class="mb-5 flex items-start justify-between gap-3">
+                      <div>
+                        <h2 class="text-lg font-semibold tracking-tight">Least active</h2>
+                        <p class="text-xs text-muted-foreground mt-0.5">Lowest attendance count</p>
+                      </div>
+                      <LeaderboardModal
+                        title="Least active"
+                        description="All members sorted by lowest attendance count"
+                        rows={rankedLeastActive}
+                        variant="least"
+                        client:load
+                      />
                     </div>
                     <ul class="space-y-2">
                       {leastAttendees.map(a => (
@@ -432,9 +445,18 @@ const hasData = filteredRoster.length > 0 && events.length > 0;
                   </div>
 
                   <div class="pt-6 md:pt-0 md:pl-8">
-                    <div class="mb-5">
-                      <h2 class="text-lg font-semibold tracking-tight">Most late arrivals</h2>
-                      <p class="text-xs text-muted-foreground mt-0.5">Total late check-ins</p>
+                    <div class="mb-5 flex items-start justify-between gap-3">
+                      <div>
+                        <h2 class="text-lg font-semibold tracking-tight">Most late arrivals</h2>
+                        <p class="text-xs text-muted-foreground mt-0.5">Total late check-ins</p>
+                      </div>
+                      <LeaderboardModal
+                        title="Most late arrivals"
+                        description="All members sorted by total late check-ins"
+                        rows={rankedMostLate}
+                        variant="late"
+                        client:load
+                      />
                     </div>
                     {mostLate.length === 0 ? (
                       <p class="text-sm text-muted-foreground py-8 text-center">No late check-ins recorded.</p>
