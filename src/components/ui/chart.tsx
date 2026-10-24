@@ -36,7 +36,7 @@ const ChartContainer = React.forwardRef<
         ref={ref}
         data-chart={chartId}
         className={cn(
-          "flex aspect-video justify-center text-xs",
+          "flex min-w-0 min-h-0 aspect-video justify-center text-xs",
           "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground",
           "[&_.recharts-cartesian-grid_line]:stroke-border/40",
           "[&_.recharts-curve.recharts-tooltip-cursor]:stroke-border",
@@ -50,7 +50,18 @@ const ChartContainer = React.forwardRef<
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>{children}</RechartsPrimitive.ResponsiveContainer>
+        <RechartsPrimitive.ResponsiveContainer
+          width="100%"
+          height="100%"
+          minWidth={0}
+          minHeight={0}
+          // Avoid Recharts' {-1, -1} fallback dimensions during the first
+          // render, before ResizeObserver reports the actual container size.
+          // The observer immediately replaces these provisional dimensions.
+          initialDimension={{ width: 640, height: 320 }}
+        >
+          {children}
+        </RechartsPrimitive.ResponsiveContainer>
       </div>
     </ChartContext.Provider>
   );
