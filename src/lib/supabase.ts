@@ -151,6 +151,8 @@ export class MockQueryBuilder {
   isSingle = false;
   isMaybeSingle = false;
   limitCount: number | null = null;
+  rangeStart: number | null = null;
+  rangeEnd: number | null = null;
   orderField: string | null = null;
   orderAscending = true;
 
@@ -226,6 +228,13 @@ export class MockQueryBuilder {
 
   limit(n: number) {
     this.limitCount = n;
+    return this;
+  }
+
+  range(from: number, to: number) {
+    // Supabase ranges are zero-based and the end index is inclusive.
+    this.rangeStart = Math.max(0, from);
+    this.rangeEnd = Math.max(this.rangeStart, to);
     return this;
   }
 
@@ -308,6 +317,9 @@ export class MockQueryBuilder {
           }
           return asc ? (valA < valB ? -1 : 1) : (valA > valB ? -1 : 1);
         });
+      }
+      if (this.rangeStart !== null && this.rangeEnd !== null) {
+        result = result.slice(this.rangeStart, this.rangeEnd + 1);
       }
       if (this.limitCount !== null) result = result.slice(0, this.limitCount);
       if (this.isSingle) {
