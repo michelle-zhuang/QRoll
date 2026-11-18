@@ -1,12 +1,13 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseClient } from '../../../lib/supabase';
+import { safeNext } from '../../../lib/redirect';
 
 export const POST: APIRoute = async ({ request, cookies, redirect, url }) => {
   const formData = await request.formData();
   const email = formData.get('email')?.toString();
   const password = formData.get('password')?.toString();
   const type = formData.get('type')?.toString(); // 'signin' or 'signup'
-  const next = url.searchParams.get('next') || '/dashboard';
+  const next = safeNext(url.searchParams.get('next'));
   const baseUrl = import.meta.env.PUBLIC_APP_URL || url.origin;
 
   if (!email || !password) {

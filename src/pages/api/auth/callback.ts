@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseClient } from '../../../lib/supabase';
+import { safeNext } from '../../../lib/redirect';
 
 export const GET: APIRoute = async ({ url, cookies, redirect }) => {
   const code = url.searchParams.get('code');
-  const next = url.searchParams.get('next') || '/dashboard';
+  const next = safeNext(url.searchParams.get('next'));
   
   if (code) {
     const supabase = createSupabaseClient(cookies);

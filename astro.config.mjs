@@ -13,9 +13,6 @@ export default defineConfig({
     webAnalytics: { enabled: true },
   }),
   integrations: [react()],
-  security: {
-    checkOrigin: false
-  },
   vite: {
     resolve: {
       alias: {
