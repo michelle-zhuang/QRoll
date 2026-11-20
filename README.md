@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![QRoll Logo](https://raw.githubusercontent.com/michelle-zhuang/QRoll/main/public/assets/qroll-logo.svg "QRoll QR-based Attendance Tracker")
+![QRoll Logo](https://raw.githubusercontent.com/michelle-zhuang/QRoll/main/public/assets/qroll-logo.png "QRoll QR-based Attendance Tracker")
 
 **A QR-based attendance tracker for recurring events — built for clubs and teams that need to know who showed up, who was late, and why.**
 
