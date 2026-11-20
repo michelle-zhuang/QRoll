@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { createSupabaseClient } from '../lib/supabase';
+import { resolveUserTeamContext } from '../lib/teamContext';
 import AstroCard from '../components/AstroCard.astro';
 import AstroBadge from '../components/AstroBadge.astro';
 import AstroButton from '../components/AstroButton.astro';
@@ -11,103 +12,30 @@ import type { AttendanceData, AttendanceStatus, AttendanceRecord, AttendeeStat }
 import { Users, Calendar } from 'lucide-react';
 
 const supabase = createSupabaseClient(Astro.cookies);
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) return Astro.redirect('/login');
+const teamCtx = await resolveUserTeamContext(supabase, Astro.cookies);
+if (!teamCtx.user) return Astro.redirect('/login');
 
-let selectedTeamId = Astro.cookies.get('qroll_team_id')?.value || null;
-let selectedCompanyId = Astro.cookies.get('qroll_company_id')?.value || null;
+const {
+  user,
+  profile,
+  isGlobalAdmin,
+  isAdmin,
+  accessibleTeams,
+  accessibleCompanies,
+  selectedTeamId,
+  selectedCompanyId,
+  selectedTeam: currentTeam,
+  selectedCompany: currentCompany
+} = teamCtx;
 
-// 1. Initial parallel query to resolve user profile and team access scope
-const [profileRes, memberTeamsRes, adminCompaniesRes] = await Promise.all([
-  supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle(),
-  supabase.from('team_members').select('team_id, teams (id, name, company_id)').eq('user_id', session.user.id),
-  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id).eq('role', 'admin')
-]);
-
-let profile = profileRes.data;
-if (!profile) {
-  const { data: newProfile, error } = await supabase
-    .from('profiles')
-    .insert({
-      id: session.user.id,
-      email: session.user.email,
-      full_name: session.user.user_metadata?.full_name || null
-    })
-    .select()
-    .single();
-  if (!error) profile = newProfile;
-}
-
-const memberTeams = memberTeamsRes.data || [];
-const adminCompanies = adminCompaniesRes.data || [];
-const isGlobalAdmin = profile?.role === 'admin';
-
-// 2. Fetch teams for companies they admin
-let adminTeams: any[] = [];
-if (isGlobalAdmin) {
-  const { data } = await supabase.from('teams').select('id, name, company_id');
-  adminTeams = data || [];
-} else if (adminCompanies.length > 0) {
-  const { data } = await supabase
-    .from('teams')
-    .select('id, name, company_id')
-    .in('company_id', adminCompanies.map(c => c.company_id));
-  adminTeams = data || [];
-}
-
-// 3. Resolve all accessible teams
-const accessibleTeamsMap = new Map<string, { id: string; name: string; company_id: string }>();
-memberTeams.forEach((m: any) => {
-  if (m.teams) {
-    accessibleTeamsMap.set(m.teams.id, {
-      id: m.teams.id,
-      name: m.teams.name,
-      company_id: m.teams.company_id
-    });
-  }
-});
-adminTeams.forEach((t: any) => {
-  accessibleTeamsMap.set(t.id, t);
-});
-
-const accessibleTeams = [...accessibleTeamsMap.values()];
-
-let hasNoTeams = false;
-
-if (accessibleTeams.length > 0) {
-  const teamIds = accessibleTeams.map(t => t.id);
-  if (!selectedTeamId || !teamIds.includes(selectedTeamId)) {
-    selectedTeamId = accessibleTeams[0].id;
-    selectedCompanyId = accessibleTeams[0].company_id;
-    Astro.cookies.set('qroll_team_id', selectedTeamId, { path: '/' });
-    Astro.cookies.set('qroll_company_id', selectedCompanyId, { path: '/' });
-  } else {
-    const found = accessibleTeams.find(t => t.id === selectedTeamId);
-    selectedCompanyId = found ? found.company_id : null;
-  }
-} else {
-  hasNoTeams = true;
-}
-
-// Company-scoped admin check
-let isAdmin = isGlobalAdmin;
-if (!isAdmin && selectedCompanyId) {
-  const { data: member } = await supabase
-    .from('company_members')
-    .select('role')
-    .eq('company_id', selectedCompanyId)
-    .eq('user_id', session.user.id)
-    .maybeSingle();
-  isAdmin = member?.role === 'admin';
-}
-
+const hasNoTeams = accessibleTeams.length === 0;
 const isRestricted = !isAdmin;
 
 let events: any[] = [];
 let roster: any[] = [];
 let attendance: any[] = [];
 
-if (!isRestricted) {
+if (!isRestricted && selectedTeamId) {
   const [eventsRes, rosterRes] = await Promise.all([
     supabase.from('events').select('id, title, starts_at, checkin_closes_at, cancelled_at').eq('team_id', selectedTeamId).order('starts_at', { ascending: true }),
     supabase.from('team_members').select('id, full_name, user_id').eq('team_id', selectedTeamId).order('full_name', { ascending: true })
@@ -135,8 +63,8 @@ if (!isRestricted) {
   }
 }
 
-const linkedMember = roster.find(m => m.user_id === session.user.id);
-const displayName = linkedMember?.full_name || profile?.full_name || profile?.email || session.user.email;
+const linkedMember = roster.find(m => m.user_id === user.id);
+const displayName = linkedMember?.full_name || profile?.full_name || profile?.email || user.email;
 
 // Map event_id -> ISO date (YYYY-MM-DD) using starts_at in America/Los_Angeles timezone
 const dateByEvent: Record<string, string> = {};

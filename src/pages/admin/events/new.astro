@@ -11,52 +11,22 @@ import { RecurrenceFields } from '../../../components/RecurrenceFields';
 import { expandOccurrences, type RecurrenceFreq } from '../../../lib/recurrence';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 
+import { resolveUserTeamContext } from '../../../lib/teamContext';
+
 const supabase = createSupabaseClient(Astro.cookies);
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) return Astro.redirect('/login');
-
-const [profileRes, myCompanyMembershipsRes] = await Promise.all([
-  supabase.from('profiles').select('role, full_name, email').eq('id', session.user.id).single(),
-  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id)
-]);
-
-const profile = profileRes.data;
-const isGlobalAdmin = profile?.role === 'admin';
-const adminCompanyIds = (myCompanyMembershipsRes.data || [])
-  .filter(cm => cm.role === 'admin')
-  .map(cm => cm.company_id);
-
-if (!isGlobalAdmin && adminCompanyIds.length === 0) {
-  return Astro.redirect('/dashboard');
-}
-
-let manageableCompanies = [];
-let manageableTeams = [];
-
-if (isGlobalAdmin) {
-  const [companiesRes, teamsRes] = await Promise.all([
-    supabase.from('companies').select('*').order('name'),
-    supabase.from('teams').select('*').order('name')
-  ]);
-  manageableCompanies = companiesRes.data || [];
-  manageableTeams = teamsRes.data || [];
-} else {
-  const [companiesRes, teamsRes] = await Promise.all([
-    supabase.from('companies').select('*').in('id', adminCompanyIds).order('name'),
-    supabase.from('teams').select('*').in('company_id', adminCompanyIds).order('name')
-  ]);
-  manageableCompanies = companiesRes.data || [];
-  manageableTeams = teamsRes.data || [];
-}
-
 const url = new URL(Astro.request.url);
-let teamId = url.searchParams.get('team_id') || Astro.cookies.get('active_team_id')?.value;
+const urlTeamId = url.searchParams.get('team_id');
+const teamCtx = await resolveUserTeamContext(supabase, Astro.cookies, urlTeamId);
 
-let currentTeam = manageableTeams.find(t => t.id === teamId);
-if (!currentTeam && manageableTeams.length > 0) {
-  currentTeam = manageableTeams[0];
-  teamId = currentTeam.id;
-}
+if (!teamCtx.user) return Astro.redirect('/login');
+if (!teamCtx.isAdmin) return Astro.redirect('/dashboard');
+
+const {
+  accessibleTeams: manageableTeams,
+  accessibleCompanies: manageableCompanies,
+  selectedTeamId: teamId,
+  selectedTeam: currentTeam
+} = teamCtx;
 
 let errorMsg = '';
 

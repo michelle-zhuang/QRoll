@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { createSupabaseClient } from '../../lib/supabase';
+import { resolveUserTeamContext } from '../../lib/teamContext';
 import AstroCard from '../../components/AstroCard.astro';
 import AstroButton from '../../components/AstroButton.astro';
 import AstroBadge from '../../components/AstroBadge.astro';
@@ -9,58 +10,19 @@ import { Label } from '../../components/ui/label';
 import { ArrowLeft, ChevronDown, Trash2 } from 'lucide-react';
 
 const supabase = createSupabaseClient(Astro.cookies);
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) return Astro.redirect('/login');
-
-const [profileRes, profilesRes, myCompanyMembershipsRes] = await Promise.all([
-  supabase.from('profiles').select('role').eq('id', session.user.id).single(),
-  supabase.from('profiles').select('id, email, full_name').order('full_name', { ascending: true }),
-  supabase.from('company_members').select('company_id, role').eq('user_id', session.user.id)
-]);
-
-const profile = profileRes.data;
-const isGlobalAdmin = profile?.role === 'admin';
-const adminCompanyIds = (myCompanyMembershipsRes.data || [])
-  .filter(cm => cm.role === 'admin')
-  .map(cm => cm.company_id);
-
-if (!isGlobalAdmin && adminCompanyIds.length === 0) {
-  return Astro.redirect('/dashboard');
-}
-
-let manageableCompanies = [];
-let manageableTeams = [];
-
-if (isGlobalAdmin) {
-  const [companiesRes, teamsRes] = await Promise.all([
-    supabase.from('companies').select('*').order('name'),
-    supabase.from('teams').select('*').order('name')
-  ]);
-  manageableCompanies = companiesRes.data || [];
-  manageableTeams = teamsRes.data || [];
-} else {
-  const [companiesRes, teamsRes] = await Promise.all([
-    supabase.from('companies').select('*').in('id', adminCompanyIds).order('name'),
-    supabase.from('teams').select('*').in('company_id', adminCompanyIds).order('name')
-  ]);
-  manageableCompanies = companiesRes.data || [];
-  manageableTeams = teamsRes.data || [];
-}
-
 const url = new URL(Astro.request.url);
-let teamId = url.searchParams.get('team_id') || Astro.cookies.get('active_team_id')?.value;
+const urlTeamId = url.searchParams.get('team_id');
+const teamCtx = await resolveUserTeamContext(supabase, Astro.cookies, urlTeamId);
 
-if (url.searchParams.get('team_id')) {
-  Astro.cookies.set('active_team_id', url.searchParams.get('team_id')!, { path: '/' });
-  teamId = url.searchParams.get('team_id')!;
-}
+if (!teamCtx.user) return Astro.redirect('/login');
+if (!teamCtx.isAdmin) return Astro.redirect('/dashboard');
 
-let currentTeam = manageableTeams.find(t => t.id === teamId);
-if (!currentTeam && manageableTeams.length > 0) {
-  currentTeam = manageableTeams[0];
-  teamId = currentTeam.id;
-  Astro.cookies.set('active_team_id', currentTeam.id, { path: '/' });
-}
+const {
+  selectedTeamId: teamId,
+  selectedTeam: currentTeam
+} = teamCtx;
+
+const profilesRes = await supabase.from('profiles').select('id, email, full_name').order('full_name', { ascending: true });
 
 function toastRedirect(msg: string, type: 'success' | 'error' = 'success') {
   return Astro.redirect(`/admin/roster?team_id=${teamId || ''}&toast=${encodeURIComponent(msg)}&toastType=${type}`);
@@ -120,14 +82,6 @@ const profiles = profilesRes.data || [];
 
 const claimedCount = (roster || []).filter(r => r.user_id).length;
 const unclaimedCount = (roster || []).length - claimedCount;
-
-const teamsWithCompany = manageableTeams.map(team => {
-  const company = manageableCompanies.find(c => c.id === team.company_id);
-  return {
-    ...team,
-    companyName: company ? company.name : 'Unknown Company'
-  };
-});
 ---
 <Layout title="Roster">
   <main class="max-w-5xl mx-auto p-6 md:p-8">
@@ -139,37 +93,15 @@ const teamsWithCompany = manageableTeams.map(team => {
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
       <div>
         <h1 class="text-3xl font-semibold tracking-tight">Roster</h1>
-        <p class="text-muted-foreground mt-1 text-sm">Members who can attend events. Set an email to auto-link when they sign up, or link manually.</p>
+        <p class="text-muted-foreground mt-1 text-sm">
+          Members on the <strong class="font-medium text-foreground">{currentTeam?.name || 'team'}</strong> roster who can attend events. Set an email to auto-link when they sign up, or link manually.
+        </p>
       </div>
       <div class="flex items-center gap-2">
         <AstroBadge variant="success">{claimedCount} claimed</AstroBadge>
         <AstroBadge variant="outline">{unclaimedCount} unclaimed</AstroBadge>
       </div>
     </div>
-
-    <!-- Team Selector -->
-    {manageableTeams.length > 0 && (
-      <div class="bg-card border border-border rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div class="space-y-1">
-          <h2 class="text-lg font-semibold tracking-tight">Selected Team</h2>
-          <p class="text-xs text-muted-foreground">Manage the roster for a specific team.</p>
-        </div>
-        <form method="get" class="flex items-center gap-2">
-          <select
-            id="team-selector"
-            name="team_id"
-            onchange="this.form.submit()"
-            class="flex h-10 rounded-2xl border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {teamsWithCompany.map(t => (
-              <option value={t.id} selected={t.id === teamId}>
-                {t.companyName} - {t.name}
-              </option>
-            ))}
-          </select>
-        </form>
-      </div>
-    )}
 
     <!-- Add new member -->
     <AstroCard className="p-5 mb-6">

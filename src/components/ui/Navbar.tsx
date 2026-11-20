@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Menu, X, LogOut, LogIn, User, QrCode, Building2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "src/lib/utils";
-import { CompanySelector } from "../CompanySelector";
 import { TeamSelector } from "../TeamSelector";
 
 interface NavbarProps {
@@ -35,26 +34,37 @@ export const Navbar = ({
   const [isUserOpen, setIsUserOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const filteredTeams = teams.filter(t => t.company_id === selectedCompanyId);
-
   const handleCompanyChange = (companyId: string) => {
     document.cookie = `qroll_company_id=${companyId}; path=/; max-age=31536000`;
     const firstTeam = teams.find(t => t.company_id === companyId);
     if (firstTeam) {
       document.cookie = `qroll_team_id=${firstTeam.id}; path=/; max-age=31536000`;
+      document.cookie = `active_team_id=${firstTeam.id}; path=/; max-age=31536000`;
     } else {
       document.cookie = `qroll_team_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+      document.cookie = `active_team_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
     }
     window.location.reload();
   };
 
   const handleTeamChange = (teamId: string) => {
     document.cookie = `qroll_team_id=${teamId}; path=/; max-age=31536000`;
+    document.cookie = `active_team_id=${teamId}; path=/; max-age=31536000`;
     const teamObj = teams.find(t => t.id === teamId);
-    if (teamObj) {
+    if (teamObj?.company_id) {
       document.cookie = `qroll_company_id=${teamObj.company_id}; path=/; max-age=31536000`;
     }
-    window.location.reload();
+
+    // If current URL contains ?team_id=..., update it to reflect the newly selected team
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("team_id")) {
+        url.searchParams.set("team_id", teamId);
+        window.location.href = url.toString();
+        return;
+      }
+      window.location.reload();
+    }
   };
 
   useEffect(() => {
@@ -102,19 +112,36 @@ export const Navbar = ({
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex h-14 items-center justify-between">
-          {/* Logo */}
-          <a href="/" className="flex items-center gap-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-card border">
-              <QrCode className="h-5 w-5 text-foreground" />
-            </div>
-            <span className="text-base font-semibold tracking-tight">QRoll</span>
-          </a>
+      <div className="w-full px-4 sm:px-6">
+        <div className="flex h-14 items-center justify-between gap-3">
+          {/* Left section: Logo + Unified Team Selector (Common, visible spot) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <a href="/" className="flex items-center gap-2 group shrink-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-card border border-border/80 shadow-xs group-hover:scale-105 transition-transform">
+                <QrCode className="h-5 w-5 text-foreground" />
+              </div>
+              <span className="text-base font-semibold tracking-tight hidden sm:inline">QRoll</span>
+            </a>
 
-          {/* Desktop nav */}
+            {user && teams.length > 0 && (
+              <>
+                <span className="text-border text-sm font-light select-none shrink-0">/</span>
+                <div className="min-w-0">
+                  <TeamSelector
+                    teams={teams}
+                    companies={companies}
+                    selectedCompanyId={selectedCompanyId}
+                    selectedTeamId={selectedTeamId}
+                    onChange={handleTeamChange}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Center: Desktop navigation links */}
           {links.length > 0 && (
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-1 shrink-0">
               {links.map((link) => (
                 <a
                   key={link.href}
@@ -122,7 +149,7 @@ export const Navbar = ({
                   className={cn(
                     "relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors",
                     isActive(link.href)
-                      ? "text-foreground"
+                      ? "text-foreground font-semibold"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   )}
                 >
@@ -139,22 +166,8 @@ export const Navbar = ({
             </nav>
           )}
 
-          {/* Right section */}
-          <div className="flex items-center gap-2">
-            {user && (
-              <div className="hidden md:flex items-center gap-3 mr-2">
-                <CompanySelector
-                  companies={companies}
-                  selectedCompanyId={selectedCompanyId}
-                  onChange={handleCompanyChange}
-                />
-                <TeamSelector
-                  teams={filteredTeams}
-                  selectedTeamId={selectedTeamId}
-                  onChange={handleTeamChange}
-                />
-              </div>
-            )}
+          {/* Right section: User Profile / Menu & Mobile Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
             {!user ? (
               <a
                 href="/login"
@@ -190,7 +203,7 @@ export const Navbar = ({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -4, scale: 0.98 }}
                       transition={{ duration: 0.12 }}
-                      className="absolute right-0 mt-2 w-56 rounded-2xl border bg-popover text-popover-foreground shadow-[0_8px_30px_rgba(47,39,56,0.08),0_2px_8px_rgba(228,193,249,0.18)] p-1.5"
+                      className="absolute right-0 mt-2 w-56 rounded-2xl border bg-popover text-popover-foreground shadow-[0_8px_30px_rgba(47,39,56,0.08),0_2px_8px_rgba(228,193,249,0.18)] p-1.5 z-50"
                     >
                       <div className="px-3 py-2">
                         <p className="text-xs text-muted-foreground">Signed in as</p>
@@ -202,7 +215,7 @@ export const Navbar = ({
                         className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                       >
                         <Building2 className="h-4 w-4" />
-                        <span>Create a Company</span>
+                        <span>Manage Companies</span>
                       </a>
                       <div className="h-px bg-border my-1" />
                       <form action="/api/auth/signout" method="POST">
@@ -243,18 +256,19 @@ export const Navbar = ({
             transition={{ duration: 0.18 }}
             className="md:hidden overflow-hidden border-t border-border/60 bg-background"
           >
-            <nav className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex flex-col gap-1">
-              {user && (
-                <div className="flex flex-col gap-3 px-4 py-2 border-b border-border/60 mb-2">
-                  <CompanySelector
+            <nav className="w-full px-4 sm:px-6 py-3 flex flex-col gap-1">
+              {user && teams.length > 0 && (
+                <div className="flex flex-col gap-1.5 px-4 py-2 border-b border-border/60 mb-2">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Current Team
+                  </span>
+                  <TeamSelector
+                    teams={teams}
                     companies={companies}
                     selectedCompanyId={selectedCompanyId}
-                    onChange={handleCompanyChange}
-                  />
-                  <TeamSelector
-                    teams={filteredTeams}
                     selectedTeamId={selectedTeamId}
                     onChange={handleTeamChange}
+                    className="w-full"
                   />
                 </div>
               )}
@@ -265,7 +279,7 @@ export const Navbar = ({
                   className={cn(
                     "px-4 py-2 rounded-xl text-sm font-medium transition-colors",
                     isActive(link.href)
-                      ? "bg-muted text-foreground"
+                      ? "bg-muted text-foreground font-semibold"
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                   )}
                 >

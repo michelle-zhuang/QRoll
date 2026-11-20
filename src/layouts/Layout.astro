@@ -4,6 +4,7 @@ import { Navbar } from "../components/ui/Navbar";
 import { Toaster } from "../components/ui/sonner";
 import { ToastNotifier } from "../components/ToastNotifier";
 import { createSupabaseClient } from "../lib/supabase";
+import { resolveUserTeamContext } from "../lib/teamContext";
 
 interface Props {
 	title?: string;
@@ -13,79 +14,19 @@ interface Props {
 const { title = 'QRoll', hideNavbar = false } = Astro.props;
 const currentPath = Astro.url.pathname;
 
-// Fetch user session and profile for role logic
+// Fetch user session and resolved team context
 const supabase = createSupabaseClient(Astro.cookies);
-const { data: { session } } = await supabase.auth.getSession();
-const user = session?.user;
+const teamCtx = await resolveUserTeamContext(supabase, Astro.cookies);
 
-let role = "guest";
-let selectedTeamId: string | null = Astro.cookies.get('qroll_team_id')?.value || null;
-let selectedCompanyId: string | null = Astro.cookies.get('qroll_company_id')?.value || null;
-
-let companies: any[] = [];
-let teams: any[] = [];
-let isGlobalAdmin = false;
-
-if (user) {
-  // Retrieve all teams this user belongs to
-  const { data: memberships } = await supabase
-    .from('team_members')
-    .select('team_id, teams!inner(id, name, company_id, companies!inner(id, name, slug))')
-    .eq('user_id', user.id);
-
-  if (memberships && memberships.length > 0) {
-    // Unique companies and teams
-    const companyMap = new Map();
-    const teamMap = new Map();
-    memberships.forEach((m: any) => {
-      const t = m.teams;
-      if (t) {
-        teamMap.set(t.id, { id: t.id, name: t.name, company_id: t.company_id });
-        const c = t.companies;
-        if (c) {
-          companyMap.set(c.id, { id: c.id, name: c.name, slug: c.slug });
-        }
-      }
-    });
-    companies = Array.from(companyMap.values());
-    teams = Array.from(teamMap.values());
-
-    // If no team is selected, or the selected team is not one they belong to, default to the first membership
-    if (!selectedTeamId || !teamMap.has(selectedTeamId)) {
-      const firstT = memberships[0].teams as any;
-      if (firstT) {
-        selectedTeamId = firstT.id;
-        selectedCompanyId = firstT.company_id;
-        if (selectedTeamId) Astro.cookies.set('qroll_team_id', selectedTeamId, { path: '/' });
-        if (selectedCompanyId) Astro.cookies.set('qroll_company_id', selectedCompanyId, { path: '/' });
-      }
-    } else {
-      selectedCompanyId = teamMap.get(selectedTeamId).company_id;
-    }
-  }
-
-  // Fetch profile to check for global admin status
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-  isGlobalAdmin = profile?.role === 'admin';
-
-  // Determine role based on company_members or fallback to global admin
-  if (selectedCompanyId) {
-    const { data: member } = await supabase
-      .from('company_members')
-      .select('role')
-      .eq('company_id', selectedCompanyId)
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    role = (member?.role === 'admin' || isGlobalAdmin) ? 'admin' : 'attendee';
-  } else {
-    role = isGlobalAdmin ? 'admin' : 'attendee';
-  }
-}
+const {
+  user,
+  role,
+  accessibleTeams: teams,
+  accessibleCompanies: companies,
+  selectedTeamId,
+  selectedCompanyId,
+  isGlobalAdmin
+} = teamCtx;
 ---
 <!doctype html>
 <html lang="en">
