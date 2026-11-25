@@ -47,26 +47,28 @@ describe('AttendanceMatrix Scroll Elements', () => {
 
   it('scrolls the container when clicking buttons', () => {
     const scrollBySpy = vi.fn();
-    
-    render(<AttendanceMatrix data={mockData} />);
-    act(() => {
-      vi.advanceTimersByTime(50);
+    Object.defineProperty(HTMLDivElement.prototype, 'scrollBy', {
+      configurable: true,
+      writable: true,
+      value: scrollBySpy
     });
-    
-    const container = document.querySelector('.overflow-x-auto');
-    expect(container).not.toBeNull();
-    if (container) {
-      container.scrollBy = scrollBySpy;
-    }
+
+    render(<AttendanceMatrix data={mockData} />);
 
     const leftBtn = screen.getByLabelText('Scroll left');
     const rightBtn = screen.getByLabelText('Scroll right');
 
     fireEvent.click(leftBtn);
-    expect(scrollBySpy).toHaveBeenCalledWith(expect.objectContaining({ left: -200, behavior: 'smooth' }));
+    expect(scrollBySpy).toHaveBeenCalledWith(
+      expect.objectContaining({ left: -200, behavior: 'smooth' })
+    );
 
     fireEvent.click(rightBtn);
-    expect(scrollBySpy).toHaveBeenCalledWith(expect.objectContaining({ left: 200, behavior: 'smooth' }));
+    expect(scrollBySpy).toHaveBeenCalledWith(
+      expect.objectContaining({ left: 200, behavior: 'smooth' })
+    );
+
+    delete (HTMLDivElement.prototype as any).scrollBy;
   });
 
   it('calls noteApiUrl with team_member_id when editing and saving notes', async () => {
